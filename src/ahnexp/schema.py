@@ -26,20 +26,31 @@ IDENTITY = (
 )
 
 DESIGN = (
-    Column("tokens_after_target", "int64", "Compression pressure, in model tokens"),
+    Column("tokens_after_target", "int64",
+           "Distractor tokens after the target. The H1/H2 independent variable — "
+           "not affected by prompt wording or the chat template"),
+    Column("model_tokens_after_target", "int64",
+           "Every token after the target in the tokenised model input (distractors + "
+           "question/instruction + chat-template suffix); the exact/recurrent boundary "
+           "is measured against this"),
     Column("sliding_window", "int64", "Window length in force, for normalisation"),
     Column("memory_condition", "string", "exact_memory | recurrent_memory"),
     Column("fact_type", "string", "Category from config/facts.yaml"),
     Column("distractor_density", "string", "low | high"),
     Column("target_position", "string", "early | mid | late"),
-    Column("context_tokens", "int64", "Total prompt length, for length-matching checks"),
+    Column("context_tokens", "int64", "Total tokenised model input length"),
 )
 
 OUTCOME = (
-    Column("correct", "int64", "1 if the normalised prediction matches the gold answer"),
-    Column("abstained", "int64", "1 if the model declined to answer — not the same as wrong"),
+    Column("correct", "int64", "1 if the canonicalised answer exactly equals the gold"),
+    Column("abstained", "int64", "1 if the response was exactly an abstention ('I don't know')"),
+    Column("malformed", "int64",
+           "1 if the response is not exactly one recognised short answer "
+           "(empty, negated, too long, bare mention, echo, or competing candidates)"),
+    Column("answer_canonical", "string", "The single value the response selected, canonicalised"),
     Column("confidence", "float64", "Confidence of the generated answer, in [0, 1]"),
-    Column("prediction", "string", "Raw generated text, kept for failure analysis"),
+    Column("n_new_tokens", "int64", "Generated token count, for the max_new_tokens audit"),
+    Column("prediction", "string", "Full raw generated text, verbatim — the audit trail for rescoring"),
     Column("gold", "string", "Gold answer"),
 )
 
@@ -72,9 +83,11 @@ def validate(df: pd.DataFrame, *, needs: tuple[str, ...] = ("core",)) -> pd.Data
     if df.empty:
         raise ValueError("Results frame is empty.")
 
-    bad = set(df["correct"].dropna().unique()) - {0, 1}
-    if bad:
-        raise ValueError(f"`correct` must be 0/1; found {sorted(bad)}")
+    for flag in ("correct", "abstained", "malformed"):
+        if flag in df.columns:
+            bad = set(df[flag].dropna().unique()) - {0, 1}
+            if bad:
+                raise ValueError(f"`{flag}` must be 0/1; found {sorted(bad)}")
 
     if "confidence" in df.columns:
         conf = df["confidence"].dropna()
@@ -91,11 +104,18 @@ def validate(df: pd.DataFrame, *, needs: tuple[str, ...] = ("core",)) -> pd.Data
 def derive_memory_condition(df: pd.DataFrame) -> pd.DataFrame:
     """Recompute `memory_condition` from the mechanical rule.
 
-    The condition is a function of the window in force, so it is derived rather
-    than trusted from upstream.
+    The target has left exact attention once the number of tokens after it reaches
+    the window. That count is `model_tokens_after_target` (the real tokenised input)
+    when available; older frames (the pilot CSV, synthetic fixtures) only carry
+    `tokens_after_target` and fall back to it.
     """
     out = df.copy()
-    out["memory_condition"] = (out["tokens_after_target"] >= out["sliding_window"]).map(
+    after = (
+        out["model_tokens_after_target"]
+        if "model_tokens_after_target" in out.columns
+        else out["tokens_after_target"]
+    )
+    out["memory_condition"] = (after >= out["sliding_window"]).map(
         {True: "recurrent_memory", False: "exact_memory"}
     )
     return out

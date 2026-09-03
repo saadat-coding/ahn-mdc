@@ -22,8 +22,9 @@ models:
     sliding_window_type: fixed
     generation:
       do_sample: false             # greedy: confidence must be comparable across arms
-      max_new_tokens: 12
+      max_new_tokens: 12           # kept at 12 for now; n_new_tokens is recorded to check empirically
       num_beams: 1
+      stop_strings: ["\n"]         # the answer is line 1; supported in transformers 4.51 (needs tokenizer=)
 
   # The AHN paper trains with --sliding_window 256, but a merged checkpoint loads
   # through a stock Qwen2ForCausalLM that carries Qwen2.5's own (much larger)

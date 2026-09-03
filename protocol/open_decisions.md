@@ -49,7 +49,7 @@ confidence is on a different scale than H3 expects.
 | 4 | **ECE formula** from a top-venue paper. Guo et al. 2017 (ICML) is already cited in the research doc; confirm bin count and binning strategy against the PDF and freeze them. | H3 | Sumiya | `OPEN` |
 | 5 | **CWR threshold** — what confidence counts as *confidently* wrong. Same threshold everywhere. The pilot used 0.5 with no justification. | H3 | Sumiya | `OPEN` |
 | 6 | **Confidence definition.** Pilot used full-sequence token probability, which penalises long answers: pilot confidences span 1.8e-06 to 0.99. Decide between sequence probability and length-normalised, apply one everywhere. | H3 | Sumiya | `OPEN` |
-| 7 | **Answer matcher per fact type.** Pilot scores `contradictory` at 0% under every condition and `temporal` at 90–100%. Verify this is real degradation and not a scoring bug before it is reported as the H1 effect. | H1 | Saadat | `BLOCKER` |
+| 7 | **Answer matcher per fact type.** ~~Pilot scores `contradictory` at 0% and `temporal` at 90–100%.~~ Root cause was containment scoring + a constant-gold dataset bug. Fixed: constrained short-answer prompt + per-type deterministic canonicalised exact scorer (`evaluate.score_row` / `rescore`), raw generation preserved, `malformed` recorded separately. | H1 | Saadat | `DONE` → `evaluate.py`, `config/facts.yaml` |
 | 8 | **Fact-type taxonomy frozen** — numerical, temporal, entity-attribute, multi-hop, contradictory (research doc, Table 2). | H1 | Saadat | `DONE` → `config/facts.yaml` |
 | 9 | **Random seeds.** How many, fixed across models and conditions. The pilot has 100 distinct `seed` values but one item each, so there is no replication and every clustered interval comes back empty. | all | Youssef | `BLOCKER` |
 | 10 | **Distractor density** defined quantitatively, not as low/high labels. | all | Youssef | `OPEN` |
@@ -66,6 +66,7 @@ confidence is on a different scale than H3 expects.
 | 14 | Full evaluation set size; all tables must use the same underlying set. | Saadat | `OPEN` |
 | 15 | Abstention detection — "I don't know" is not the same as retrieving the wrong thing. Pilot does not measure it. | Sumiya | `OPEN` |
 | 16 | Second-stage validation on LongBench / LongBench v2, if the synthetic effect holds. | team | `OPEN` |
+| 17 | **Chance baseline for the closed-set fact types.** `chance = 0.2` for entity-attribute / multi-hop / contradictory assumes a uniform pick over 5 options, but these are free-response — the model is never shown the options, and collision control removes the gold from the visible context, so the true uninformed rate is unknown and probably < 0.2. **Raw accuracy is the primary H1 metric**; `metrics.chance_corrected_accuracy` output is indicative only until resolved. Options: (A) keep 0.2 with an operational definition; (B) make it explicit 5-way multiple choice; (C) keep free response and measure a null (target-removed) baseline. Not resolved here; do not run the null experiment yet. | H1 | Saadat / team | `OPEN` |
 
 ---
 

@@ -27,6 +27,12 @@ COMPANIES = ["Google", "Microsoft", "Amazon", "Meta", "Apple"]
 CITIES_FROM = ["Paris", "Berlin", "Tokyo", "Delhi", "Sydney"]
 CITIES_TO = ["London", "Madrid", "Beijing", "Toronto", "Dubai"]
 
+# Fact types whose gold is drawn from a small fixed set. Their generators take an
+# explicit answer `slot` so the choice can be driven by a per-fact-type counter
+# instead of the global item index — the two must not share a modulus or every
+# item of a type collapses to one gold. See tests/diagnose_constant_gold.py.
+_CATEGORICAL_TYPES = ("entity-attribute", "multi-hop", "contradictory")
+
 
 @dataclass
 class Fact:
@@ -70,26 +76,30 @@ def temporal(i: int) -> Fact:
                 f"Who arrived first, {a} or {b}?", a)
 
 
-def entity_attribute(i: int) -> Fact:
-    person, color = f"Person_{i}", COLORS[i % len(COLORS)]
+def entity_attribute(i: int, slot: int | None = None) -> Fact:
+    person = f"Person_{i}"
+    color = COLORS[(i if slot is None else slot) % len(COLORS)]
     return Fact("entity-attribute", f"{person}'s favorite color is {color}.",
                 f"What is {person}'s favorite color?", color)
 
 
-def multi_hop(i: int) -> Fact:
-    a, b, company = f"Person_{i}", f"Person_{i + 1}", COMPANIES[i % len(COMPANIES)]
+def multi_hop(i: int, slot: int | None = None) -> Fact:
+    a, b = f"Person_{i}", f"Person_{i + 1}"
+    company = COMPANIES[(i if slot is None else slot) % len(COMPANIES)]
     return Fact("multi-hop", f"{a} manages {b}. {b} works for {company}.",
                 f"Which company does {a}'s subordinate work for?", company)
 
 
-def contradictory(i: int) -> Fact:
+def contradictory(i: int, slot: int | None = None) -> Fact:
     person = f"Person_{i}"
-    old, new = CITIES_FROM[i % 5], CITIES_TO[i % 5]
+    pick = (i if slot is None else slot) % len(CITIES_TO)
+    old, new = CITIES_FROM[pick], CITIES_TO[pick]
+    assert old != new, "CITIES_FROM/CITIES_TO must stay disjoint: a fact supersedes a different city"
     return Fact("contradictory", f"{person} lived in {old}. {person} now lives in {new}.",
                 f"Where does {person} live now?", new)
 
 
-GENERATORS: dict[str, Callable[[int], Fact]] = {
+GENERATORS: dict[str, Callable[..., Fact]] = {
     "numerical": numerical,
     "temporal": temporal,
     "entity-attribute": entity_attribute,
@@ -110,12 +120,22 @@ def generate_items(n_items: int, seed: int = 0, pool_size: int = 4000) -> list[I
     rng = random.Random(seed)
     types = list(GENERATORS)
     densities = ["low", "high"]
+    # Position of the current item within its own fact type. Categorical answers
+    # are chosen from this, not from `index`, so they cycle through the whole
+    # answer space instead of phase-locking with `index % len(types)`.
+    slot_counter: dict[str, int] = {}
 
     items: list[Item] = []
     for index in range(n_items):
         fact_type = types[index % len(types)]
         density = densities[(index // len(types)) % len(densities)]
-        target = GENERATORS[fact_type](index)
+        slot = slot_counter.get(fact_type, 0)
+        slot_counter[fact_type] = slot + 1
+        target = (
+            GENERATORS[fact_type](index, slot)
+            if fact_type in _CATEGORICAL_TYPES
+            else GENERATORS[fact_type](index)
+        )
         item = Item(
             item_id=f"{fact_type}_{index:04d}",
             fact=target,
@@ -220,8 +240,9 @@ def assert_no_collision(item: Item) -> None:
     """A distractor must never contain the target's answer as a whole token.
 
     Substring matching is too coarse: `Person_1` is a prefix of `Person_15839`, so
-    it would flag every later ID as a leak. The scorer uses the same word-boundary
-    rule (`evaluate.is_correct`), so the two stay aligned.
+    it would flag every later ID as a leak. `_leaks_answer` and the scorer's
+    value extraction (`evaluate._selected_answer`) both match on word boundaries,
+    so a distractor that would score as the answer is the one rejected here.
     """
     if not config.facts()["collision_control"]["enabled"]:
         return
@@ -237,6 +258,9 @@ def assert_no_collision(item: Item) -> None:
 # Trajectories
 # ---------------------------------------------------------------------------
 
+# Strengthened from "Answer with only the short answer." The per-type {answer_hint}
+# comes from config/facts.yaml; the "I don't know" line is the exact abstention the
+# scorer recognises. No option set is revealed (open_decisions.md #7).
 _PROMPT = """You are given a set of factual statements.
 
 {context}
@@ -244,8 +268,25 @@ _PROMPT = """You are given a set of factual statements.
 Question:
 {question}
 
-Answer with only the short answer.
+{answer_hint} Give only that value, with no other words.
+If the answer is not stated above, reply with exactly: I don't know
 """
+
+
+def _to_model_input(tokenizer, body: str) -> str:
+    """Wrap the prompt in the checkpoint's chat template when it has one.
+
+    Qwen2.5-*-Instruct ships a chat template; feeding it a raw string leaves the
+    model without its `<|im_start|>assistant` cue and it stops following the
+    "answer only" instruction. Tokenizers without a template (or bare stubs in
+    tests) fall through unchanged.
+    """
+    template = getattr(tokenizer, "chat_template", None)
+    if not template or not hasattr(tokenizer, "apply_chat_template"):
+        return body
+    return tokenizer.apply_chat_template(
+        [{"role": "user", "content": body}], tokenize=False, add_generation_prompt=True
+    )
 
 
 def build_trajectory(
@@ -261,6 +302,17 @@ def build_trajectory(
     without adding compression pressure. Holding `before + after` constant while
     sweeping `after` gives the length-matched control; leaving it at zero
     reproduces the pilot's target-first layout.
+
+    Token accounting distinguishes three quantities (open_decisions.md #1):
+      * `tokens_after_target`        — distractor tokens after the target. The H1/H2
+                                       independent variable; unaffected by the
+                                       prompt wording or the chat template.
+      * `model_tokens_after_target`  — every token after the target in the actual
+                                       tokenised model input: distractors + the
+                                       question/instruction block + template suffix.
+                                       The exact/recurrent boundary is measured
+                                       against this.
+      * `context_tokens`             — the whole tokenised model input.
     """
     rng = random.Random(seed)
     order = list(item.distractors)
@@ -270,16 +322,22 @@ def build_trajectory(
     after, _ = _fill(order, tokenizer, tokens_after_target, start=used)
 
     context = "\n".join(f"- {f.text}" for f in [*before, item.fact, *after])
-    prompt = _PROMPT.format(context=context, question=item.fact.question)
+    hint = config.facts()["types"][item.fact.fact_type]["answer_hint"]
+    body = _PROMPT.format(context=context, question=item.fact.question, answer_hint=hint)
+    prompt = _to_model_input(tokenizer, body)
 
     realised = len(tokenizer(_block(after))["input_ids"]) if after else 0
+    cut = prompt.index(item.fact.text) + len(item.fact.text)
+    n_full = len(tokenizer(prompt)["input_ids"])
+    n_through_target = len(tokenizer(prompt[:cut])["input_ids"])
     return {
         **item.as_metadata(),
         "seed": seed,
         "prompt": prompt,
         "tokens_after_target": realised,
         "requested_tokens_after_target": tokens_after_target,
-        "context_tokens": len(tokenizer(prompt)["input_ids"]),
+        "model_tokens_after_target": n_full - n_through_target,
+        "context_tokens": n_full,
         "target_position": _position(len(before), len(after)),
     }
 

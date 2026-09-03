@@ -6,17 +6,22 @@
 version: 1
 status: FROZEN
 
+# `answer_hint` is appended to the prompt so the model returns only the value.
+# Minimal per-type guidance — it must NOT reveal the finite answer set or offer
+# multiple choice (open_decisions.md #7).
 types:
   numerical:
     example: "Person_0's employee ID is 100000."
     importance: high
     answer_form: exact_string      # digits; matcher must not accept a near miss
+    answer_hint: "Reply with only the ID number, digits only."
     h1_prediction: fast degradation — no semantic redundancy to reconstruct from
 
   temporal:
     example: "Person_0 arrived before Person_1."
     importance: medium
     answer_form: entity
+    answer_hint: "Reply with only the name of the person who arrived first."
     h1_prediction: slower — binary orderings are guessable at 50% by chance
     caveat: >-
       Two-way question, so chance is 0.5. Correct for it before comparing this
@@ -27,6 +32,7 @@ types:
     example: "Person_0's favorite color is blue."
     importance: medium
     answer_form: closed_set        # 5 colours -> 20% chance
+    answer_hint: "Reply with only the colour."
     h1_prediction: fast degradation, but chance-corrected
 
   multi-hop:
@@ -34,12 +40,14 @@ types:
     query: which company does Person_0's subordinate work for?
     importance: high
     answer_form: closed_set        # 5 companies
+    answer_hint: "Reply with only the company name."
     h1_prediction: fastest — requires two facts to survive compression, not one
 
   contradictory:
     example: "Person_0 lived in Paris. Person_0 now lives in London."
     importance: high
     answer_form: closed_set
+    answer_hint: "Reply with only the name of the city where they live now."
     h1_prediction: the update should survive; the stale value is the failure mode
     caveat: >-
       The pilot scores this at 0% under every condition, including in-window,
@@ -49,12 +57,20 @@ types:
 
 # Chance accuracy per category, for chance-correcting H1 comparisons. Categories
 # with different chance floors are not directly comparable on raw accuracy.
+#
+# OPEN DECISION (open_decisions.md #7 / #17): raw accuracy is the PRIMARY H1 metric.
+# The 0.2 values below assume a uniform pick over a 5-item closed set, but entity-
+# attribute / multi-hop / contradictory are free-response questions — the model is
+# never shown the five options, and collision control removes the gold from the
+# visible context, so the true uninformed baseline is unknown and probably < 0.2.
+# `metrics.chance_corrected_accuracy` still uses these; treat its output as
+# indicative only until the baseline is resolved (options A/B/C in the protocol).
 chance:
   numerical: 0.0
   temporal: 0.5
-  entity-attribute: 0.2
-  multi-hop: 0.2
-  contradictory: 0.2
+  entity-attribute: 0.2      # PROVISIONAL — see note above
+  multi-hop: 0.2             # PROVISIONAL
+  contradictory: 0.2         # PROVISIONAL
 
 # Distractors must never contain the target's answer, or a "correct" response can
 # be produced without retrieving anything. Enforced by dataset.assert_no_collision.

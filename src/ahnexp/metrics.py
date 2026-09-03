@@ -30,6 +30,16 @@ def abstention_rate(df: pd.DataFrame) -> float:
     return float(df["abstained"].mean()) if "abstained" in df.columns else float("nan")
 
 
+def malformed_rate(df: pd.DataFrame) -> float:
+    """Fraction of responses that were not exactly one recognised short answer.
+
+    Descriptive only. Malformed responses already score `correct=0`, so they are
+    inside `accuracy` and `retrieval_failure_rate`; this reports them separately so
+    a run can be checked for format collapse (e.g. rising with compression pressure).
+    """
+    return float(df["malformed"].mean()) if "malformed" in df.columns else float("nan")
+
+
 def expected_calibration_error(
     confidence, correct, n_bins: int | None = None
 ) -> tuple[float, pd.DataFrame]:

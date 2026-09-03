@@ -1,4 +1,8 @@
-"""Generation, scoring and confidence — one trial at a time, plus the grid runner."""
+"""Generation and deterministic scoring — one trial at a time, plus the grid runner.
+
+Scoring (`score_row` / `rescore`) is a pure function of the stored raw generation:
+a GPU run is scored once and can be re-scored offline without re-inference.
+"""
 
 from __future__ import annotations
 
@@ -11,39 +15,116 @@ import pandas as pd
 
 from ahnexp import config, dataset, models, schema
 
-_ABSTENTIONS = (
-    "i don't know", "i do not know", "unknown", "not sure", "cannot determine",
-    "no information", "not mentioned", "unclear",
-)
+SCORER_VERSION = "1.0"
+
+# Matched against the WHOLE cleaned answer, never as a substring. The prompt asks
+# the model to reply exactly "I don't know"; the rest are safety nets.
+_ABSTENTIONS = frozenset({
+    "i don't know", "i dont know", "i do not know", "idk", "unknown", "not known",
+    "no answer", "not stated", "not given", "not sure", "i'm not sure", "im not sure",
+    "cannot be determined", "can't tell",
+})
+_NEGATION = re.compile(r"(?i)\b(?:not|never|no longer|n't|isn'?t|wasn'?t|aren'?t|don'?t|doesn'?t|didn'?t)\b")
+_LABEL = re.compile(r"(?i)^\s*(?:the\s+)?(?:answer|ans|a)\b\s*(?:is\b\s*|[:=]\s*)")
+_PERSON = re.compile(r"(?i)person[ _]?(\d+)")
+_NUMBER = re.compile(r"\d[\d,]*")
+_MAX_ANSWER_WORDS = 4
 
 
-def normalise(text: str) -> str:
-    """Trim the model's answer down to something comparable with the gold string."""
-    text = text.strip().split("\n")[0].replace("`", " ")
-    return text.strip().strip(".").strip('"').strip("'").strip().lower()
+def clean_answer(text: str) -> str:
+    """First line of the generation, minus a leading label and wrapping/trailing punctuation."""
+    if not text or not text.strip():
+        return ""
+    line = text.strip().splitlines()[0]
+    line = _LABEL.sub("", line, count=1)
+    line = line.strip(" \t`\"'*()[]{}<>")
+    line = line.rstrip(".,;:!?").strip()
+    return re.sub(r"\s+", " ", line)
 
 
-def is_correct(prediction: str, gold: str) -> int:
-    """Word-boundary containment, so "the answer is 4827." matches "4827"."""
-    p, g = normalise(prediction), normalise(gold)
-    if not g:
-        return 0
-    if p == g:
-        return 1
-    return 1 if re.search(rf"(?<!\w){re.escape(g)}(?!\w)", p) else 0
+def _one_from_set(low: str, options: Iterable[str]) -> str | None:
+    present = sorted({o for o in options if re.search(rf"\b{re.escape(o)}\b", low)})
+    return present[0] if len(present) == 1 else None
 
 
-def is_abstention(prediction: str) -> int:
-    """Declining to answer is not the same failure as retrieving the wrong thing."""
-    p = normalise(prediction)
-    return 1 if any(phrase in p for phrase in _ABSTENTIONS) else 0
+def _selected_answer(fact_type: str, cleaned: str) -> str | None:
+    """The single value the response selects, or None if it is not exactly one."""
+    low = cleaned.lower()
+    if fact_type == "numerical":
+        nums = {int(m.group().replace(",", "")) for m in _NUMBER.finditer(low)}
+        return str(next(iter(nums))) if len(nums) == 1 else None
+    if fact_type == "temporal":
+        people = {f"person_{int(d)}" for d in _PERSON.findall(low)}
+        return next(iter(people)) if len(people) == 1 else None
+    if fact_type == "entity-attribute":
+        return _one_from_set(low, (c.lower() for c in dataset.COLORS))
+    if fact_type == "multi-hop":
+        return _one_from_set(low, (c.lower() for c in dataset.COMPANIES))
+    if fact_type == "contradictory":
+        return _one_from_set(low, (c.lower() for c in (*dataset.CITIES_FROM, *dataset.CITIES_TO)))
+    raise ValueError(f"Unknown fact_type {fact_type!r}")
+
+
+def _canonical_gold(fact_type: str, gold: str) -> str:
+    if fact_type == "numerical":
+        return str(int(str(gold).replace(",", "").strip()))
+    if fact_type == "temporal":
+        m = _PERSON.search(str(gold))
+        return f"person_{int(m.group(1))}" if m else str(gold).lower()
+    return str(gold).strip().lower()
+
+
+def score_row(prediction: str, gold: str, fact_type: str) -> dict[str, Any]:
+    """Deterministic outcome for one trial. Pure: no model, no randomness.
+
+    Returns `correct`, `abstained`, `malformed` (0/1) and `answer_canonical`. A row
+    is exactly one of: correct, wrong, abstained, malformed. A malformed response
+    (empty, a negation, too long, or not exactly one recognised value — which is
+    where a bare gold mention, a question echo, and multiple competing candidates
+    all land) scores `correct=0` and is also flagged for separate reporting.
+    """
+    cleaned = clean_answer(prediction)
+    low = cleaned.lower()
+
+    if low in _ABSTENTIONS:
+        return {"correct": 0, "abstained": 1, "malformed": 0, "answer_canonical": ""}
+    if not cleaned or len(cleaned.split()) > _MAX_ANSWER_WORDS or _NEGATION.search(cleaned):
+        return {"correct": 0, "abstained": 0, "malformed": 1, "answer_canonical": ""}
+
+    selected = _selected_answer(fact_type, cleaned)
+    if selected is None:
+        return {"correct": 0, "abstained": 0, "malformed": 1, "answer_canonical": ""}
+
+    return {
+        "correct": int(selected == _canonical_gold(fact_type, gold)),
+        "abstained": 0,
+        "malformed": 0,
+        "answer_canonical": selected,
+    }
+
+
+def rescore(df: pd.DataFrame) -> pd.DataFrame:
+    """Recompute outcome columns from the stored raw `prediction`. No GPU needed."""
+    missing = {"prediction", "gold", "fact_type"} - set(df.columns)
+    if missing:
+        raise ValueError(f"Cannot rescore: frame is missing {sorted(missing)}")
+    out = df.copy()
+    scored = out.apply(
+        lambda r: score_row(r["prediction"], r["gold"], r["fact_type"]),
+        axis=1, result_type="expand",
+    )
+    for col in ("correct", "abstained", "malformed", "answer_canonical"):
+        out[col] = scored[col]
+    out["scorer_version"] = SCORER_VERSION
+    return out
 
 
 def run_trial(model, tokenizer, trajectory: dict[str, Any]) -> dict[str, Any]:
-    """Generate and score one trajectory from a fresh state.
+    """Generate one trajectory from a fresh state. Returns the RAW generation, its
+    confidence and the new-token count only — scoring happens in `score_row`.
 
-    Each call is an independent forward pass on its own prompt, which is what
-    satisfies the state-reset commitment: no probe can influence a later one.
+    Each call is an independent forward pass, which satisfies the state-reset
+    commitment: no probe can influence a later one.
     """
     import numpy as np
     import torch
@@ -53,6 +134,8 @@ def run_trial(model, tokenizer, trajectory: dict[str, Any]) -> dict[str, Any]:
     inputs = tokenizer(trajectory["prompt"], return_tensors="pt", truncation=False).to(device)
     prompt_len = inputs["input_ids"].shape[1]
 
+    stop_strings = generation.get("stop_strings")
+    stop_kwargs = {"stop_strings": stop_strings, "tokenizer": tokenizer} if stop_strings else {}
     with torch.no_grad():
         output = model.generate(
             **inputs,
@@ -62,21 +145,20 @@ def run_trial(model, tokenizer, trajectory: dict[str, Any]) -> dict[str, Any]:
             return_dict_in_generate=True,
             output_scores=True,
             pad_token_id=tokenizer.eos_token_id,
+            **stop_kwargs,
         )
 
     generated = output.sequences[0, prompt_len:]
-    prediction = tokenizer.decode(generated, skip_special_tokens=True).strip()
+    prediction = tokenizer.decode(generated, skip_special_tokens=True)  # verbatim, not stripped
 
     scores = model.compute_transition_scores(output.sequences, output.scores, normalize_logits=True)
     log_probs = scores[0][: len(generated)]
-    confidence = _confidence(log_probs, np)
 
     return {
         "prediction": prediction,
         "gold": trajectory["gold"],
-        "correct": is_correct(prediction, trajectory["gold"]),
-        "abstained": is_abstention(prediction),
-        "confidence": confidence,
+        "confidence": _confidence(log_probs, np),
+        "n_new_tokens": int(len(generated)),
     }
 
 
@@ -154,16 +236,19 @@ def run_grid(
                         # prompt stays constant across the sweep.
                         tokens_before_target=max(budget - pressure, 0),
                     )
-                    records.append(
-                        {
-                            **{k: trajectory[k] for k in
-                               ("item_id", "fact_type", "distractor_density", "target_position",
-                                "tokens_after_target", "context_tokens", "seed")},
-                            "architecture": name,
-                            "sliding_window": window,
-                            **run_trial(model, tokenizer, trajectory),
-                        }
+                    record = {
+                        **{k: trajectory[k] for k in
+                           ("item_id", "fact_type", "distractor_density", "target_position",
+                            "tokens_after_target", "model_tokens_after_target",
+                            "context_tokens", "seed")},
+                        "architecture": name,
+                        "sliding_window": window,
+                        **run_trial(model, tokenizer, trajectory),
+                    }
+                    record.update(
+                        score_row(record["prediction"], record["gold"], record["fact_type"])
                     )
+                    records.append(record)
 
         del model, tokenizer
         gc.collect()
@@ -171,6 +256,7 @@ def run_grid(
 
     models.assert_matched(descriptions)
     df = schema.derive_memory_condition(pd.DataFrame(records))
+    df["scorer_version"] = SCORER_VERSION
     return schema.validate(df, needs=("core", "h1", "h3"))
 
 
