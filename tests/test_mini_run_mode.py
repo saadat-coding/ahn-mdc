@@ -9,6 +9,7 @@ No GPU. `python -m unittest discover -s tests`.
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -66,6 +67,20 @@ class TestMiniRunMode(unittest.TestCase):
         cal = self.exp["calibration"]
         self.assertEqual(cal["confidence"], "sequence_probability")
         self.assertEqual(cal["cwr_threshold"], 0.5)
+
+
+class TestMiniGridRunner(unittest.TestCase):
+    """`scripts/run_mini_grid.py --self-test` — no GPU: fabricates a mini-shaped
+    frame and drives it through the real gate + H1 + H3 analysis code."""
+
+    def test_runner_self_test_passes(self):
+        proc = subprocess.run(
+            [sys.executable, str(_ROOT / "scripts" / "run_mini_grid.py"), "--self-test"],
+            capture_output=True, text=True, cwd=_ROOT, timeout=120,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("SELF-TEST PASSED", proc.stdout)
+        self.assertIn("MINI-GRID PASSED", proc.stdout)
 
 
 if __name__ == "__main__":
