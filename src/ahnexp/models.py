@@ -205,15 +205,32 @@ def load(name: str, ahn_repo: str | Path | None = None, sliding_window: int | No
 
 
 def _force_window(model, window: int, verbose: bool = True) -> None:
+    matched = config.experiment()["models"]["matched"]
     reported = getattr(model.config, "sliding_window", None)
     if verbose:
         print(
             f"checkpoint reports sliding_window={reported}, "
-            f"use_sliding_window={getattr(model.config, 'use_sliding_window', None)}"
-            f" -> forcing {window}"
+            f"use_sliding_window={getattr(model.config, 'use_sliding_window', None)}, "
+            f"sliding_window_type={getattr(model.config, 'sliding_window_type', None)}, "
+            f"ahn_position={getattr(model.config, 'ahn_position', None)}"
+            f" -> forcing sliding_window={window}, "
+            f"sliding_window_type={matched['sliding_window_type']!r}, "
+            f"ahn_position={matched['ahn_position']!r}, num_attn_sinks=0"
         )
     model.config.sliding_window = int(window)
     model.config.use_sliding_window = True
+    # Matched inference regime. The AHN checkpoints ship training-time values
+    # (sliding_window_type='random', ahn_position='random', sometimes stale dy_*
+    # keys). ByteDance qwen2_ahn.py reads these ONLY under `if self.training`, so
+    # this is a config-integrity normalisation, not an inference-behaviour change:
+    # it makes the three AHN arms byte-identical on the windowing config and lets
+    # assert_matched enforce it. See patches/README.md and open_decisions.md #12.
+    model.config.sliding_window_type = matched["sliding_window_type"]
+    model.config.ahn_position = matched["ahn_position"]
+    model.config.num_attn_sinks = 0
+    for _stale in ("dy_sliding_window", "dy_num_attn_sinks"):
+        if hasattr(model.config, _stale):
+            delattr(model.config, _stale)
     for module in model.modules():
         if hasattr(module, "sliding_window"):
             module.sliding_window = int(window)
@@ -234,6 +251,11 @@ def describe(name: str, model, tokenizer) -> dict[str, Any]:
     return {
         "arm": name,
         "sliding_window": effective_window(model),
+        # Matched AHN inference regime (normalised in _force_window); assert_matched
+        # compares these across arms — see patches/README.md, open_decisions.md #12.
+        "sliding_window_type": getattr(model.config, "sliding_window_type", None),
+        "ahn_position": getattr(model.config, "ahn_position", None),
+        "num_attn_sinks": int(getattr(model.config, "num_attn_sinks", 0)),
         "dtype": str(next(model.parameters()).dtype),
         "vocab_size": int(model.config.vocab_size),
         "tokenizer_hash": _tokenizer_fingerprint(tokenizer),
