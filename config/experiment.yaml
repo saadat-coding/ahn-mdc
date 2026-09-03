@@ -80,6 +80,14 @@ pressure:
   # degradation is expected to be log-linear, with resolution near the window edge.
   grid: [0.0, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0]
   pilot_grid: [0.0, 0.5, 1.0, 2.0]
+  # Boundary / plumbing check only (run_modes.mini) — never cited as a result.
+  # These 3 multiples + the auto-added published-T point (include_threshold, ~768
+  # tok, unchanged) resolve to tokens_after_target = [0, 128, 768, 2048]:
+  #   +~50 template/question tokens -> model_tokens_after_target ~[50, 180, 820, 2100]
+  #   -> 2 clearly exact {0, 128}, 2 clearly recurrent {768, 2048}
+  #   (the 2048 point reproduces the passing diagnostic's recurrent trajectory).
+  # 4 levels x 5 items x 1 seed x 1 arm = 20 trials.
+  mini_grid: [0.0, 0.5, 8.0]
   max_context_tokens: 24576        # AHN training cutoff_len
   include_threshold: true          # add T as its own grid point
 
@@ -120,6 +128,13 @@ design:
     target_position: [early, mid, late]
 
 run_modes:
+  mini:
+    purpose: boundary / plumbing check before the full grid — never cited as a result
+    n_items: 5                     # one item per fact type -> exercises every scorer path
+    seeds: [0]
+    grid: mini_grid               # 20 trials: 5 items x 4 levels x 1 seed x 1 arm
+    hardware: gpu                  # Colab L4 or local CUDA
+    suffix: _mini
   pilot:
     purpose: pipeline verification only — never cited as a result
     n_items: 10                  # mentor: 100-150 samples / 10% of data
