@@ -34,7 +34,10 @@ set -euo pipefail
 
 REPO="${AHNEXP_ROOT:-/kaggle/working/ahn-mdc}"
 AHN_DIR="${AHN_REPO:-/kaggle/working/AHN}"
-PY="$(command -v python)"
+# SETUP_PY lets the caller target a specific interpreter — e.g. an isolated
+# Python 3.12 venv on Colab, whose runtime kernel is 3.13. Unset => the ambient
+# `python` (Kaggle). All installs go through "$PY -m pip".
+PY="${SETUP_PY:-$(command -v python)}"
 PIP_INSTALL="$PY -m pip install --disable-pip-version-check --no-cache-dir -q"
 
 FA_VER="2.8.3.post1"
@@ -117,13 +120,19 @@ fi
 $PIP_INSTALL --no-deps -e "$AHN_DIR"
 
 echo "== 6/6  project analysis deps"
-$PIP_INSTALL -c "$CONSTRAINTS" pyyaml jinja2 pyarrow accelerate
+# numpy / pandas: `import ahnexp` needs them; a no-op on Kaggle (preinstalled),
+# required in a fresh Colab venv.
+$PIP_INSTALL -c "$CONSTRAINTS" numpy pandas pyyaml jinja2 pyarrow accelerate
 
 echo
 echo "== fail-fast import check (fresh interpreter) =="
 $PY - <<'PYCHECK'
 import importlib, sys
 bad = []
+print(f"  interpreter {sys.executable}  Python {sys.version.split()[0]}")
+if sys.version_info[:2] not in ((3, 11), (3, 12)):
+    bad.append(f"interpreter is Python {sys.version_info[0]}.{sys.version_info[1]} "
+               "(need 3.11 or 3.12 — the prebuilt flash-attn wheels)")
 for m in ("torch", "transformers", "triton", "fla", "flash_attn", "ahn.transformer.qwen2_ahn"):
     try:
         mod = importlib.import_module(m)
