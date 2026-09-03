@@ -33,14 +33,19 @@ PY="$(command -v python)"
 PIP_INSTALL="$PY -m pip install --disable-pip-version-check --no-cache-dir -q"
 
 FA_VER="2.8.3.post1"
+FA_TORCH_TAG="torch2.6"            # flash-attn wheels are tagged by torch minor
 TORCH_VER="2.6.0"
+SUPPORTED_PYTAGS="cp311 cp312"     # Dao-AILab publishes torch2.6 wheels for both
 
 PYTAG="$($PY -c 'import sys;print(f"cp{sys.version_info[0]}{sys.version_info[1]}")')"
-if [ "$PYTAG" != "cp311" ]; then
-  echo "SETUP FAILED: Kaggle Python is ${PYTAG}, but the pinned flash-attn wheel is cp311."
-  echo "Use a Kaggle image with Python 3.11."
-  exit 1
-fi
+case " ${SUPPORTED_PYTAGS} " in
+  *" ${PYTAG} "*) echo "== python ${PYTAG} (supported)" ;;
+  *)
+    echo "SETUP FAILED: Kaggle Python is ${PYTAG}; supported tags: ${SUPPORTED_PYTAGS}."
+    echo "Dao-AILab flash-attn ${FA_VER} publishes prebuilt ${FA_TORCH_TAG} wheels only for those."
+    exit 1
+    ;;
+esac
 
 echo "== 1/6  pin torch stack (torch ${TORCH_VER} / cu124 — has a prebuilt flash-attn wheel; no compile)"
 $PIP_INSTALL "torch==${TORCH_VER}" "torchvision==0.21.0" "torchaudio==2.6.0" \
@@ -61,11 +66,18 @@ sed 's/^/     /' "$CONSTRAINTS"
 echo "== 2/6  transformers 4.51.0 (AHN modeling target — do not change)"
 $PIP_INSTALL -c "$CONSTRAINTS" "transformers==4.51.0"
 
-echo "== 3/6  flash-attn ${FA_VER} — PREBUILT wheel matching torch ${TORCH_VER} + this ABI (no source build)"
+echo "== 3/6  flash-attn ${FA_VER} — PREBUILT wheel for torch ${TORCH_VER} / ${PYTAG} / this ABI (no source build)"
 ABI="$($PY -c 'import torch;print("TRUE" if torch.compiled_with_cxx11_abi() else "FALSE")')"
-FA_WHL="flash_attn-${FA_VER}+cu12torch2.6cxx11abi${ABI}-cp311-cp311-linux_x86_64.whl"
+FA_WHL="flash_attn-${FA_VER}+cu12${FA_TORCH_TAG}cxx11abi${ABI}-${PYTAG}-${PYTAG}-linux_x86_64.whl"
 FA_URL="https://github.com/Dao-AILab/flash-attention/releases/download/v${FA_VER}/${FA_WHL}"
+echo "   detected: cxx11abi=${ABI}, python=${PYTAG}"
 echo "   ${FA_URL}"
+FA_HTTP="$(curl -o /dev/null -sIL -w '%{http_code}' "$FA_URL" || echo 000)"
+if [ "$FA_HTTP" != "200" ]; then
+  echo "SETUP FAILED: no matching prebuilt flash-attn wheel (HTTP ${FA_HTTP})."
+  echo "Refusing to build flash-attn from source (that is what exhausted the session last time)."
+  exit 1
+fi
 $PIP_INSTALL --no-deps "$FA_URL"
 
 echo "== 4/6  flash-linear-attention (Seerkfang fork @ main; pure-Python Triton kernels)"
