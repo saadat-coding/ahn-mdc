@@ -1,66 +1,116 @@
 #!/usr/bin/env bash
-# ---------------------------------------------------------------------------
-# Kaggle GPU environment for the AHN window diagnostic (Task #1).
-# ENVIRONMENT ONLY — no experimental methodology here.
+# =============================================================================
+# Kaggle environment for the observe-only AHN window diagnostic (Task #1).
+# ENVIRONMENT ONLY — no experimental methodology, model code, dataset, scoring,
+# metrics, window=256, or Juan-approved matched config is touched here.
 #
-# Run once per Kaggle session, in the FIRST cell, then RESTART the kernel
-# (transformers must be pinned before anything imports it):
+# Why the previous run died
+#   Kaggle ships torch 2.10.0 / cu128. Dao-AILab publishes prebuilt flash-attn
+#   wheels for torch 2.4..2.8 ONLY — none for 2.9/2.10. `pip install flash-attn`
+#   therefore built from source; its setup.py spawns one nvcc job per CPU
+#   (~8 GB RAM each), which exhausted the 30 GB session and forced a kernel
+#   restart, leaving torch/torchvision ABI-mismatched
+#   (`RuntimeError: operator torchvision::nms does not exist`) and fla / flash_attn
+#   / ahn.* unimportable.
 #
-#     !bash /kaggle/working/ahn-mdc/scripts/setup_kaggle.sh
-#     # then: Kernel -> Restart & Run All   (or just Restart)
+# Smallest reproducible fix
+#   Pin the torch stack to a version flash-attn ships a *prebuilt* wheel for:
+#   torch 2.6.0 / torchvision 0.21.0 / cu124  (AHN's documented stack is
+#   torch 2.5.1 / CUDA 12.4; the frozen Seerkfang fla fork is from Mar 2025).
+#   Install the prebuilt flash-attn wheel by URL. Nothing is compiled.
+#   transformers stays pinned at 4.51.0 (AHN modeling target).
 #
-# Requires: Kaggle "Internet" enabled, a GPU accelerator (T4 x2 or P100).
-# ---------------------------------------------------------------------------
+# REQUIRES A FRESH KAGGLE SESSION (Factory reset / brand-new notebook). A kernel
+# restart does NOT undo the corrupted on-disk packages from the failed run.
+#
+# Settings: Accelerator = GPU (2x T4) · Internet = On · Persistence = Files only.
+# =============================================================================
 set -euo pipefail
 
 REPO="${AHNEXP_ROOT:-/kaggle/working/ahn-mdc}"
 AHN_DIR="${AHN_REPO:-/kaggle/working/AHN}"
 PY="$(command -v python)"
+PIP_INSTALL="$PY -m pip install --disable-pip-version-check --no-cache-dir -q"
 
-echo "== python: $PY"
-"$PY" -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda, 'is_available', torch.cuda.is_available())"
+FA_VER="2.8.3.post1"
+TORCH_VER="2.6.0"
 
-# 1. Pin transformers FIRST. AHN's custom modeling was written against 4.51;
-#    Kaggle ships something newer and models._ensure_transformers_for_ahn only
-#    ever upgrades, never downgrades.
-pip -q install "transformers==4.51.0"
+PYTAG="$($PY -c 'import sys;print(f"cp{sys.version_info[0]}{sys.version_info[1]}")')"
+if [ "$PYTAG" != "cp311" ]; then
+  echo "SETUP FAILED: Kaggle Python is ${PYTAG}, but the pinned flash-attn wheel is cp311."
+  echo "Use a Kaggle image with Python 3.11."
+  exit 1
+fi
 
-# 2. AHN runtime deps. GatedDeltaNet needs the flash-linear-attention fork;
-#    qwen2_ahn.py imports `wandb` and torch.nn.attention.flex_attention at module
-#    top; its self-attention hardcodes FlashAttention-2 (attn_implementation is
-#    ignored by the AHN layers), so flash-attn must be importable for inference.
-pip -q install "git+https://github.com/Seerkfang/flash-linear-attention.git@main"
-pip -q install wandb einops
-pip -q install "flash-attn==2.8.3" --no-build-isolation || \
-  echo "!! flash-attn wheel install failed — see diag output; may need a source build or a matching cuXXX wheel index"
+echo "== 1/6  pin torch stack (torch ${TORCH_VER} / cu124 — has a prebuilt flash-attn wheel; no compile)"
+$PIP_INSTALL "torch==${TORCH_VER}" "torchvision==0.21.0" "torchaudio==2.6.0" \
+    --index-url https://download.pytorch.org/whl/cu124
 
-# 3. The ByteDance AHN package (weight-merge + custom Qwen2 classes). Core only —
-#    NOT the [train] extra (it pins numpy==1.26.4 / tensorflow / deepspeed).
+TRITON_VER="$($PY -c 'import triton;print(triton.__version__)' 2>/dev/null || true)"
+CONSTRAINTS=/tmp/ahn_constraints.txt
+{
+  echo "torch==${TORCH_VER}"
+  echo "torchvision==0.21.0"
+  echo "torchaudio==2.6.0"
+  echo "transformers==4.51.0"
+  [ -n "${TRITON_VER}" ] && echo "triton==${TRITON_VER}"
+} > "$CONSTRAINTS"
+echo "   constraints (nothing below may move these):"
+sed 's/^/     /' "$CONSTRAINTS"
+
+echo "== 2/6  transformers 4.51.0 (AHN modeling target — do not change)"
+$PIP_INSTALL -c "$CONSTRAINTS" "transformers==4.51.0"
+
+echo "== 3/6  flash-attn ${FA_VER} — PREBUILT wheel matching torch ${TORCH_VER} + this ABI (no source build)"
+ABI="$($PY -c 'import torch;print("TRUE" if torch.compiled_with_cxx11_abi() else "FALSE")')"
+FA_WHL="flash_attn-${FA_VER}+cu12torch2.6cxx11abi${ABI}-cp311-cp311-linux_x86_64.whl"
+FA_URL="https://github.com/Dao-AILab/flash-attention/releases/download/v${FA_VER}/${FA_WHL}"
+echo "   ${FA_URL}"
+$PIP_INSTALL --no-deps "$FA_URL"
+
+echo "== 4/6  flash-linear-attention (Seerkfang fork @ main; pure-Python Triton kernels)"
+$PIP_INSTALL -c "$CONSTRAINTS" "git+https://github.com/Seerkfang/flash-linear-attention.git@main"
+$PIP_INSTALL -c "$CONSTRAINTS" wandb einops
+
+echo "== 5/6  ByteDance AHN package (core only; NOT the [train] extra)"
 if [ ! -f "$AHN_DIR/examples/scripts/utils/merge_weights.py" ]; then
   rm -rf "$AHN_DIR"
   git clone --depth 1 https://github.com/ByteDance-Seed/AHN.git "$AHN_DIR"
 fi
-pip -q install -e "$AHN_DIR"
+$PIP_INSTALL --no-deps -e "$AHN_DIR"
 
-# 4. This project (analysis deps; torch already present on Kaggle).
-pip -q install pyyaml jinja2 pyarrow
-pip -q install -e "$REPO" || echo "(editable install of ahn-mdc skipped; the diagnostic adds src/ to sys.path anyway)"
-
-echo
-echo "== versions after setup"
-"$PY" - <<'EOF'
-import importlib.metadata as m
-for pkg in ("transformers", "tokenizers", "accelerate", "huggingface-hub", "safetensors"):
-    try:
-        print(f"  {pkg:16} {m.version(pkg)}")
-    except Exception as e:
-        print(f"  {pkg:16} MISSING ({e})")
-for mod in ("fla", "flash_attn", "ahn.transformer.qwen2_ahn"):
-    try:
-        __import__(mod); print(f"  import {mod:24} OK")
-    except Exception as e:
-        print(f"  import {mod:24} FAIL: {type(e).__name__}: {e}")
-EOF
+echo "== 6/6  project analysis deps"
+$PIP_INSTALL -c "$CONSTRAINTS" pyyaml jinja2 pyarrow accelerate
 
 echo
-echo "== DONE. Now RESTART the kernel, then run:  python $REPO/scripts/diag_ahn_window.py"
+echo "== fail-fast import check (fresh interpreter) =="
+$PY - <<'PYCHECK'
+import importlib, sys
+bad = []
+for m in ("torch", "transformers", "triton", "fla", "flash_attn", "ahn.transformer.qwen2_ahn"):
+    try:
+        mod = importlib.import_module(m)
+        print(f"  OK   {m:34} {getattr(mod, '__version__', '')}")
+    except Exception as e:
+        print(f"  FAIL {m:34} {type(e).__name__}: {e}")
+        bad.append(m)
+try:
+    import torch, transformers
+    if not torch.__version__.startswith("2.6."):
+        bad.append(f"torch=={torch.__version__} (want 2.6.x)")
+    if transformers.__version__ != "4.51.0":
+        bad.append(f"transformers=={transformers.__version__} (want 4.51.0)")
+except Exception as e:
+    bad.append(f"version check: {e}")
+if bad:
+    print("\nSETUP FAILED:", bad)
+    print("Do NOT proceed. Start a fresh Kaggle session and re-run this cell.")
+    sys.exit(1)
+print("\nimports OK")
+PYCHECK
+
+echo
+echo "SETUP OK. Now, in order:"
+echo "  1) Run -> Restart & clear cell outputs        (mandatory: torch was replaced on disk)"
+echo "  2) run the ENV VERIFICATION cell"
+echo "  3) run the DIAGNOSTIC cell"
