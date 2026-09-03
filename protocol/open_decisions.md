@@ -10,7 +10,21 @@ Status: `BLOCKER` · `OPEN` · `DONE`
 
 ## P0 — Blocks everything
 
-### 1. Verify the target actually leaves the sliding window · `BLOCKER` · Saadat + Juan
+### 1. Verify the target actually leaves the sliding window · `DONE` (2026-09-03) · Saadat + Juan
+
+**PASSED with live runtime evidence** — see `protocol/task1_window_verification.md`.
+`scripts/diag_ahn_window.py` on a real GatedDeltaNet checkpoint (Colab L4, torch 2.6 /
+transformers 4.51 / prebuilt flash-attn): the merged checkpoint reports `sliding_window=256`,
+loads as the **custom** `ahn.transformer.qwen2_ahn.Qwen2ForCausalLM` (36 × `Qwen2MemDecoderLayer`,
+`.ahn` = `BaseAHN` / `GatedDeltaNet`), `_force_window` makes `effective_window == 256`, and
+the AHN recurrent kernel fires **only** when the target is pushed past the window
+(`ahn_layer0_num_cached_tokens`: 0 in-window vs 1906 past it; `ahn_kernel_forward_calls`:
+0 vs 5). Compression is real and driven by `config.sliding_window = 256`. Two interpretation
+notes (the ~49-token offset between `num_cached_tokens` and `expected_recurrent_positions`;
+`confidence` on an abstention row) are documented in the verification record — documentation
+only, no methodology change.
+
+<details><summary>original blocker text (for the record)</summary>
 
 The research doc commits to *"the inference sliding window deliberately shortened so that
 target facts cross into compressed memory after a short, controlled offset"*. It is not clear
@@ -32,6 +46,8 @@ pressure grid never clears it.
 
 Until this is settled, **no pilot number means anything** — the 500 rows may be measuring
 prompt length, not memory.
+
+</details>
 
 ### 2. Results schema sign-off · `OPEN` · everyone
 
