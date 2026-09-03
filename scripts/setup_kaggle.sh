@@ -4,26 +4,31 @@
 # ENVIRONMENT ONLY — no experimental methodology, model code, dataset, scoring,
 # metrics, window=256, or Juan-approved matched config is touched here.
 #
-# Why the previous run died
-#   Kaggle ships torch 2.10.0 / cu128. Dao-AILab publishes prebuilt flash-attn
-#   wheels for torch 2.4..2.8 ONLY — none for 2.9/2.10. `pip install flash-attn`
-#   therefore built from source; its setup.py spawns one nvcc job per CPU
-#   (~8 GB RAM each), which exhausted the 30 GB session and forced a kernel
-#   restart, leaving torch/torchvision ABI-mismatched
-#   (`RuntimeError: operator torchvision::nms does not exist`) and fla / flash_attn
-#   / ahn.* unimportable.
+# Failure history
+#  (1) Kaggle's torch 2.10 / cu128 has no prebuilt flash-attn wheel, so pip built
+#      it from source -> nvcc jobs x ~8 GB -> 30 GB session OOM -> kernel restart.
+#  (2) Pinning torch 2.6.0 from the cu124 index gave the manylinux2014 /
+#      CXX11-ABI-FALSE build. The Dao-AILab flash-attn torch2.6 wheels are
+#      compiled against CXX11-ABI-TRUE torch (verified: both the abiFALSE- and
+#      abiTRUE-labelled wheels carry the identical all-`__cxx11` undefined c10
+#      symbol set — the abiFALSE label is a Dao packaging bug), so the wheel
+#      failed at dlopen: `undefined symbol: _ZN3c105ErrorC2ENS_14SourceLocation
+#      ENSt7__cxx11...` (c10::Error::Error(SourceLocation, std::__cxx11::string)).
 #
-# Smallest reproducible fix
-#   Pin the torch stack to a version flash-attn ships a *prebuilt* wheel for:
-#   torch 2.6.0 / torchvision 0.21.0 / cu124  (AHN's documented stack is
-#   torch 2.5.1 / CUDA 12.4; the frozen Seerkfang fla fork is from Mar 2025).
-#   Install the prebuilt flash-attn wheel by URL. Nothing is compiled.
-#   transformers stays pinned at 4.51.0 (AHN modeling target).
+# Fix
+#   torch 2.6.0 from the cu126 index -> manylinux_2_28 = CXX11-ABI-TRUE, whose
+#   libc10.so DOES export that symbol (verified). transformers stays 4.51.0.
+#   The prebuilt flash-attn cp3xx torch2.6 abiTRUE wheel is installed by URL.
+#   Nothing is compiled.
 #
-# REQUIRES A FRESH KAGGLE SESSION (Factory reset / brand-new notebook). A kernel
-# restart does NOT undo the corrupted on-disk packages from the failed run.
+#   flash-attn 2.x kernels are sm_80+ ONLY (`TORCH_CHECK(cc_major>=8,
+#   "FlashAttention only supports Ampere GPUs or newer")`; the wheels ship
+#   sm_80/sm_90 SASS, no PTX). Kaggle T4 (sm_75) and P100 (sm_60) CANNOT run it.
+#   USE THE KAGGLE **L4** ACCELERATOR (sm_89). The fail-fast check enforces this.
 #
-# Settings: Accelerator = GPU (2x T4) · Internet = On · Persistence = Files only.
+# REQUIRES A FRESH KAGGLE SESSION.
+#
+# Settings: Accelerator = GPU **L4** · Internet = On · Persistence = Files only.
 # =============================================================================
 set -euo pipefail
 
@@ -47,16 +52,38 @@ case " ${SUPPORTED_PYTAGS} " in
     ;;
 esac
 
-echo "== 1/6  pin torch stack (torch ${TORCH_VER} / cu124 — has a prebuilt flash-attn wheel; no compile)"
-$PIP_INSTALL "torch==${TORCH_VER}" "torchvision==0.21.0" "torchaudio==2.6.0" \
-    --index-url https://download.pytorch.org/whl/cu124
+# cu126 (manylinux_2_28) — NOT cu124. The flash-attn ${FA_TORCH_TAG} wheels are
+# compiled against CXX11-ABI-TRUE torch: BOTH the abiFALSE- and abiTRUE-labelled
+# wheels have byte-identical, all-`__cxx11` undefined c10 symbols
+# (verified: c10::Error::Error(SourceLocation, std::__cxx11::string)) — the
+# abiFALSE label is a Dao-AILab packaging bug. torch 2.6.0+cu124 is the
+# manylinux2014 / CXX11-ABI-FALSE build, whose libc10.so exports the OLD-ABI
+# std::string variant, so the wheel fails at dlopen with
+# `undefined symbol: _ZN3c105ErrorC2ENS_14SourceLocationENSt7__cxx11...`.
+# torch 2.6.0+cu126 (manylinux_2_28) IS CXX11-ABI-TRUE and exports the symbol.
+TORCH_INDEX="https://download.pytorch.org/whl/cu126"
+
+echo "== 1/6  pin torch (torch ${TORCH_VER} / cu126 manylinux_2_28 = CXX11-ABI-TRUE; no compile)"
+$PIP_INSTALL "torch==${TORCH_VER}" --index-url "$TORCH_INDEX"
+
+# torchvision / torchaudio: NOT used by fla / flash_attn / ahn / the diagnostic.
+# For torch 2.6 the cu126 index only has the OLD-tag (CXX11-ABI-FALSE) 0.21.0 /
+# 2.6.0 wheels, which would re-trigger `operator torchvision::nms does not exist`
+# against the ABI-TRUE torch. Remove Kaggle's torch-2.10 copies so a stray import
+# fails cleanly (ModuleNotFoundError) instead of with an undefined symbol.
+$PY -m pip -q uninstall -y torchvision torchaudio >/dev/null 2>&1 || true
+
+ABI="$($PY -c 'import torch;print("TRUE" if torch.compiled_with_cxx11_abi() else "FALSE")')"
+if [ "$ABI" != "TRUE" ]; then
+  echo "SETUP FAILED: torch reports cxx11abi=${ABI}, but the flash-attn ${FA_TORCH_TAG} wheels"
+  echo "require CXX11-ABI-TRUE torch. pip pulled a non-manylinux_2_28 build — check ${TORCH_INDEX}."
+  exit 1
+fi
 
 TRITON_VER="$($PY -c 'import triton;print(triton.__version__)' 2>/dev/null || true)"
 CONSTRAINTS=/tmp/ahn_constraints.txt
 {
   echo "torch==${TORCH_VER}"
-  echo "torchvision==0.21.0"
-  echo "torchaudio==2.6.0"
   echo "transformers==4.51.0"
   [ -n "${TRITON_VER}" ] && echo "triton==${TRITON_VER}"
 } > "$CONSTRAINTS"
@@ -66,11 +93,9 @@ sed 's/^/     /' "$CONSTRAINTS"
 echo "== 2/6  transformers 4.51.0 (AHN modeling target — do not change)"
 $PIP_INSTALL -c "$CONSTRAINTS" "transformers==4.51.0"
 
-echo "== 3/6  flash-attn ${FA_VER} — PREBUILT wheel for torch ${TORCH_VER} / ${PYTAG} / this ABI (no source build)"
-ABI="$($PY -c 'import torch;print("TRUE" if torch.compiled_with_cxx11_abi() else "FALSE")')"
+echo "== 3/6  flash-attn ${FA_VER} — PREBUILT wheel for torch ${TORCH_VER} / ${PYTAG} / cxx11abi=${ABI} (no source build)"
 FA_WHL="flash_attn-${FA_VER}+cu12${FA_TORCH_TAG}cxx11abi${ABI}-${PYTAG}-${PYTAG}-linux_x86_64.whl"
 FA_URL="https://github.com/Dao-AILab/flash-attention/releases/download/v${FA_VER}/${FA_WHL}"
-echo "   detected: cxx11abi=${ABI}, python=${PYTAG}"
 echo "   ${FA_URL}"
 FA_HTTP="$(curl -o /dev/null -sIL -w '%{http_code}' "$FA_URL" || echo 000)"
 if [ "$FA_HTTP" != "200" ]; then
@@ -110,19 +135,31 @@ try:
     import torch, transformers
     if not torch.__version__.startswith("2.6."):
         bad.append(f"torch=={torch.__version__} (want 2.6.x)")
+    if not torch.compiled_with_cxx11_abi():
+        bad.append("torch is not CXX11-ABI-TRUE (need the cu126 manylinux_2_28 build)")
     if transformers.__version__ != "4.51.0":
         bad.append(f"transformers=={transformers.__version__} (want 4.51.0)")
+    if torch.cuda.is_available():
+        cap = torch.cuda.get_device_capability()
+        name = torch.cuda.get_device_name(0)
+        print(f"  GPU  {name}  sm_{cap[0]}{cap[1]}")
+        if cap[0] < 8:
+            bad.append(f"GPU {name} is sm_{cap[0]}{cap[1]} — flash-attn 2.x needs sm_80+ "
+                       "(Ampere/Ada/Hopper). Kaggle T4 (sm_75) and P100 (sm_60) FAIL every "
+                       "flash_attn_func call. Select the L4 accelerator.")
+    else:
+        bad.append("no CUDA GPU visible")
 except Exception as e:
-    bad.append(f"version check: {e}")
+    bad.append(f"version/gpu check: {e}")
 if bad:
     print("\nSETUP FAILED:", bad)
-    print("Do NOT proceed. Start a fresh Kaggle session and re-run this cell.")
+    print("Do NOT proceed. Fix the item(s) above in a fresh Kaggle session.")
     sys.exit(1)
 print("\nimports OK")
 PYCHECK
 
 echo
-echo "SETUP OK. Now, in order:"
+echo "SETUP OK (torch ${TORCH_VER} cxx11abi=${ABI}, flash-attn ${FA_VER} prebuilt, ${PYTAG}). Now, in order:"
 echo "  1) Run -> Restart & clear cell outputs        (mandatory: torch was replaced on disk)"
 echo "  2) run the ENV VERIFICATION cell"
 echo "  3) run the DIAGNOSTIC cell"
