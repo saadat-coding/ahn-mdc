@@ -416,8 +416,10 @@ def build_trajectory(
     prompt = _to_model_input(tokenizer, body)
 
     realised = len(tokenizer(_block(after))["input_ids"]) if after else 0
-    cut = prompt.index(item.fact.text) + len(item.fact.text)
+    start = prompt.index(item.fact.text)
+    cut = start + len(item.fact.text)
     n_full = len(tokenizer(prompt)["input_ids"])
+    n_before_target = len(tokenizer(prompt[:start])["input_ids"])
     n_through_target = len(tokenizer(prompt[:cut])["input_ids"])
     return {
         **item.as_metadata(),
@@ -426,6 +428,10 @@ def build_trajectory(
         "tokens_after_target": realised,
         "requested_tokens_after_target": tokens_after_target,
         "model_tokens_after_target": n_full - n_through_target,
+        # In-context span length of the target sentence. The target is a span, not a
+        # point: it starts leaving exact attention once model_tokens_after_target +
+        # target_fact_tokens exceeds the window.
+        "target_fact_tokens": n_through_target - n_before_target,
         "context_tokens": n_full,
         "target_position": _position(len(before), len(after)),
     }

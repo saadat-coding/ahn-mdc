@@ -24,19 +24,25 @@ def by_pressure(df: pd.DataFrame) -> pd.DataFrame:
     failing to track memory.
     """
     schema.validate(df, needs=("core", "h3"))
+    design_key = schema.pressure_design_key(df)
+    coord = schema.pressure_coordinate(df)
 
     rows = []
-    for pressure, group in df.groupby("tokens_after_target"):
+    for level, group in df.groupby(design_key):
         window = int(group["sliding_window"].iloc[0])
+        model_tat = float(group[coord].median())
+        recurrent = (group["memory_condition"] == "recurrent_memory").mean()
         ece, _ = metrics.expected_calibration_error(group["confidence"], group["correct"])
         low, high = stats.bootstrap_statistic(
             [group], lambda g: g["confidence"].mean() - g["correct"].mean()
         )
         rows.append(
             {
-                "tokens_after_target": int(pressure),
-                "pressure_windows": pressure / window if window else np.nan,
-                "memory_condition": group["memory_condition"].iloc[0],
+                "requested_tokens_after_target": int(level),
+                "tokens_after_target": int(group["tokens_after_target"].median()),
+                "model_tokens_after_target": model_tat,
+                "pressure_windows": model_tat / window if window else np.nan,
+                "memory_condition": "recurrent_memory" if recurrent > 0.5 else "exact_memory",
                 "accuracy": metrics.accuracy(group),
                 "confidence": float(group["confidence"].mean()),
                 "gap": metrics.confidence_accuracy_gap(group),
@@ -49,7 +55,7 @@ def by_pressure(df: pd.DataFrame) -> pd.DataFrame:
             }
         )
 
-    return pd.DataFrame(rows).sort_values("tokens_after_target").reset_index(drop=True)
+    return pd.DataFrame(rows).sort_values("requested_tokens_after_target").reset_index(drop=True)
 
 
 def reliability(df: pd.DataFrame, condition: str | None = None) -> pd.DataFrame:

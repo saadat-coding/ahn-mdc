@@ -113,9 +113,10 @@ def _window_verdict(df: pd.DataFrame, window: int) -> dict[str, str]:
         return {"verdict": "FAIL",
                 "detail": f"no trial exceeded the {window}-token window — nothing was "
                           "compressed, so these numbers are not about memory"}
+    coord = "model_tokens_after_target" if "model_tokens_after_target" in df else "tokens_after_target"
     return {"verdict": "PASS",
             "detail": f"{recurrent}/{len(df)} trials past the {window}-token window "
-                      f"(max {int(df['tokens_after_target'].max())})"}
+                      f"(max {coord} {int(df[coord].max())})"}
 
 
 def blocking(gates: pd.DataFrame) -> pd.DataFrame:
@@ -140,7 +141,7 @@ def plot_curves(curve: pd.DataFrame, group_col: str, path: Path | str, ylabel: s
             ax.fill_between(group["pressure_windows"], group["ci_low"], group["ci_high"], alpha=0.15)
 
     ax.axvline(1.0, linestyle=":", linewidth=1, color="black")
-    ax.text(1.0, 1.02, " window edge", fontsize=8, color="black", ha="right")
+    ax.text(1.0, 1.02, " compression boundary", fontsize=8, color="black", ha="right")
 
     if show_threshold:
         window = float(curve["sliding_window"].iloc[0]) if "sliding_window" in curve else None
@@ -152,7 +153,7 @@ def plot_curves(curve: pd.DataFrame, group_col: str, path: Path | str, ylabel: s
     ax.set_xscale("symlog", linthresh=0.25)
     ax.set_xlim(left=0)
     ax.set_ylim(-0.05, 1.08)
-    ax.set_xlabel("Compression pressure (tokens after target / sliding window)")
+    ax.set_xlabel("Compression pressure (model tokens after target / sliding window)")
     ax.set_ylabel(ylabel)
     ax.grid(alpha=0.3)
     ax.legend(fontsize=8)
@@ -176,11 +177,11 @@ def plot_confidence_gap(table: pd.DataFrame, path: Path | str):
                     alpha=0.2, color="tab:red", label="Overconfidence")
 
     ax.axvline(1.0, linestyle=":", linewidth=1, color="black")
-    ax.text(1.0, 1.02, " window edge", fontsize=8, color="black", ha="right")
+    ax.text(1.0, 1.02, " compression boundary", fontsize=8, color="black", ha="right")
     ax.set_xscale("symlog", linthresh=0.25)
     ax.set_xlim(left=0)
     ax.set_ylim(-0.05, 1.08)
-    ax.set_xlabel("Compression pressure (tokens after target / sliding window)")
+    ax.set_xlabel("Compression pressure (model tokens after target / sliding window)")
     ax.set_ylabel("Accuracy / confidence")
     ax.grid(alpha=0.3)
     ax.legend(fontsize=8)

@@ -13,19 +13,32 @@ from ahnexp import config, metrics, schema, stats
 
 
 def curves(df: pd.DataFrame, by: str = "fact_type") -> pd.DataFrame:
-    """Accuracy against compression pressure, one curve per category."""
+    """Accuracy against compression pressure, one curve per category.
+
+    Grouped on the requested design level (`requested_tokens_after_target`), plotted
+    against the realised pressure coordinate (`model_tokens_after_target`): the
+    tokens the model actually saw after the target span, including the fixed
+    question/instruction/template block. Every level is retained, level 0 included.
+    """
     schema.validate(df, needs=("core", "h1"))
+    design_key = schema.pressure_design_key(df)
+    coord = schema.pressure_coordinate(df)
 
     rows = []
-    for (group_value, pressure), group in df.groupby([by, "tokens_after_target"]):
+    for (group_value, level), group in df.groupby([by, design_key]):
         low, high = stats.cluster_bootstrap_ci(group)
         window = int(group["sliding_window"].iloc[0])
+        model_tat = float(group[coord].median())
         rows.append(
             {
                 by: group_value,
-                "tokens_after_target": int(pressure),
-                "pressure_windows": pressure / window if window else np.nan,
-                "memory_condition": group["memory_condition"].iloc[0],
+                "requested_tokens_after_target": int(level),
+                "tokens_after_target": int(group["tokens_after_target"].median()),
+                "model_tokens_after_target": model_tat,
+                "model_tokens_after_target_mean": float(group[coord].mean()),
+                "sliding_window": window,
+                "pressure_windows": model_tat / window if window else np.nan,
+                "memory_condition": _dominant_condition(group),
                 "accuracy": metrics.accuracy(group),
                 "chance_corrected": metrics.chance_corrected_accuracy(group)
                 if by == "fact_type" else np.nan,
@@ -35,7 +48,21 @@ def curves(df: pd.DataFrame, by: str = "fact_type") -> pd.DataFrame:
             }
         )
 
-    return pd.DataFrame(rows).sort_values([by, "tokens_after_target"]).reset_index(drop=True)
+    return (
+        pd.DataFrame(rows)
+        .sort_values([by, "requested_tokens_after_target"])
+        .reset_index(drop=True)
+    )
+
+
+def _dominant_condition(group: pd.DataFrame) -> str:
+    """Majority `memory_condition` in a requested-level group (ties -> exact).
+
+    A single requested level can straddle the boundary once per-item length jitter
+    is accounted for; the curve row reports the majority label for description only.
+    """
+    recurrent = (group["memory_condition"] == "recurrent_memory").mean()
+    return "recurrent_memory" if recurrent > 0.5 else "exact_memory"
 
 
 def slopes(df: pd.DataFrame, by: str = "fact_type", recurrent_only: bool = True) -> pd.DataFrame:
@@ -45,8 +72,9 @@ def slopes(df: pd.DataFrame, by: str = "fact_type", recurrent_only: bool = True)
     by the window makes the rate comparable across checkpoints; the logit keeps a
     drop from 0.9 to 0.8 from looking like a drop from 0.5 to 0.4.
     """
+    design_key = schema.pressure_design_key(df)
     subset = df[df["memory_condition"] == "recurrent_memory"] if recurrent_only else df
-    subset = subset[subset["tokens_after_target"] > 0]
+    subset = subset[subset[design_key] > 0]
 
     rows = []
     for group_value, group in subset.groupby(by):
@@ -58,7 +86,7 @@ def slopes(df: pd.DataFrame, by: str = "fact_type", recurrent_only: bool = True)
                 "slope": point,
                 "ci_low": low,
                 "ci_high": high,
-                "n_levels": int(group["tokens_after_target"].nunique()),
+                "n_levels": int(group[design_key].nunique()),
                 "n": int(len(group)),
             }
         )
@@ -67,12 +95,16 @@ def slopes(df: pd.DataFrame, by: str = "fact_type", recurrent_only: bool = True)
 
 
 def _slope(group: pd.DataFrame) -> float:
-    cell = group.groupby("tokens_after_target").agg(
-        accuracy=("correct", "mean"), window=("sliding_window", "first")
+    design_key = schema.pressure_design_key(group)
+    coord = schema.pressure_coordinate(group)
+    cell = group.groupby(design_key).agg(
+        accuracy=("correct", "mean"),
+        coordinate=(coord, "mean"),
+        window=("sliding_window", "first"),
     ).reset_index()
     if len(cell) < 2:
         return float("nan")
-    x = np.log2(cell["tokens_after_target"].to_numpy(float) / cell["window"].to_numpy(float))
+    x = np.log2(cell["coordinate"].to_numpy(float) / cell["window"].to_numpy(float))
     y = stats.logit(cell["accuracy"].to_numpy(float))
     return float(np.polyfit(x, y, 1)[0])
 

@@ -23,20 +23,31 @@ from ahnexp import config, metrics, models, schema, stats
 
 
 def curves(df: pd.DataFrame) -> pd.DataFrame:
-    """Accuracy against pressure, one curve per architecture."""
-    schema.validate(df)
+    """Accuracy against pressure, one curve per architecture.
+
+    Grouped on the requested design level, plotted against the realised pressure
+    coordinate `model_tokens_after_target`. All levels retained (level 0 included).
+    """
+    schema.validate(df, needs=("core", "h2"))
+    design_key = schema.pressure_design_key(df)
+    coord = schema.pressure_coordinate(df)
 
     rows = []
-    for (arm, pressure), group in df.groupby(["architecture", "tokens_after_target"]):
+    for (arm, level), group in df.groupby(["architecture", design_key]):
         low, high = stats.cluster_bootstrap_ci(group)
         window = int(group["sliding_window"].iloc[0])
+        model_tat = float(group[coord].median())
+        recurrent = (group["memory_condition"] == "recurrent_memory").mean()
         rows.append(
             {
                 "architecture": arm,
-                "tokens_after_target": int(pressure),
+                "requested_tokens_after_target": int(level),
+                "tokens_after_target": int(group["tokens_after_target"].median()),
+                "model_tokens_after_target": model_tat,
+                "model_tokens_after_target_mean": float(group[coord].mean()),
                 "sliding_window": window,
-                "pressure_windows": pressure / window if window else np.nan,
-                "memory_condition": group["memory_condition"].iloc[0],
+                "pressure_windows": model_tat / window if window else np.nan,
+                "memory_condition": "recurrent_memory" if recurrent > 0.5 else "exact_memory",
                 "accuracy": metrics.accuracy(group),
                 "ci_low": low,
                 "ci_high": high,
@@ -44,7 +55,11 @@ def curves(df: pd.DataFrame) -> pd.DataFrame:
             }
         )
 
-    return pd.DataFrame(rows).sort_values(["architecture", "tokens_after_target"]).reset_index(drop=True)
+    return (
+        pd.DataFrame(rows)
+        .sort_values(["architecture", "requested_tokens_after_target"])
+        .reset_index(drop=True)
+    )
 
 
 def drop_at_threshold(df: pd.DataFrame, threshold_tokens: int | None = None) -> pd.DataFrame:
@@ -53,10 +68,11 @@ def drop_at_threshold(df: pd.DataFrame, threshold_tokens: int | None = None) -> 
         config.compression_threshold() if threshold_tokens is None else int(threshold_tokens)
     )
 
+    coord = schema.pressure_coordinate(df)
     rows = []
     for arm, group in df.groupby("architecture"):
-        below = group[group["tokens_after_target"] < threshold_tokens]
-        above = group[group["tokens_after_target"] >= threshold_tokens]
+        below = group[group[coord] < threshold_tokens]
+        above = group[group[coord] >= threshold_tokens]
         if below.empty or above.empty:
             raise ValueError(
                 f"The pressure grid does not bracket T = {threshold_tokens} tokens for {arm}. "
@@ -94,16 +110,22 @@ def shape_test(df: pd.DataFrame, threshold_tokens: int | None = None) -> pd.Data
         config.compression_threshold() if threshold_tokens is None else int(threshold_tokens)
     )
 
+    design_key = schema.pressure_design_key(df)
+    coord = schema.pressure_coordinate(df)
+
     rows = []
     for arm, group in df.groupby("architecture"):
-        cell = group[group["tokens_after_target"] > 0].groupby("tokens_after_target").agg(
-            accuracy=("correct", "mean"), window=("sliding_window", "first"), n=("correct", "size")
+        cell = group[group[design_key] > 0].groupby(design_key).agg(
+            accuracy=("correct", "mean"),
+            coordinate=(coord, "mean"),
+            window=("sliding_window", "first"),
+            n=("correct", "size"),
         ).reset_index()
         if len(cell) < 4:
             rows.append({"architecture": arm, "verdict": "too few pressure levels"})
             continue
 
-        x = np.log2(cell["tokens_after_target"].to_numpy(float) / cell["window"].to_numpy(float))
+        x = np.log2(cell["coordinate"].to_numpy(float) / cell["window"].to_numpy(float))
         y = stats.logit(cell["accuracy"].to_numpy(float))
         break_at = np.log2(threshold_tokens / cell["window"].iloc[0])
 
@@ -147,7 +169,7 @@ def _aic(rss: float, n: int, k: int) -> float:
 
 def summary(df: pd.DataFrame) -> pd.DataFrame:
     """One row per architecture: the H2 / architecture-comparison table."""
-    schema.validate(df)
+    schema.validate(df, needs=("core", "h2"))
     stats.assert_matched_design(df)
 
     slope_by_arm = _slopes(df).set_index("architecture")
@@ -195,16 +217,20 @@ def summary(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _slopes(df: pd.DataFrame) -> pd.DataFrame:
-    subset = df[(df["memory_condition"] == "recurrent_memory") & (df["tokens_after_target"] > 0)]
+    design_key = schema.pressure_design_key(df)
+    coord = schema.pressure_coordinate(df)
+    subset = df[(df["memory_condition"] == "recurrent_memory") & (df[design_key] > 0)]
     rows = []
     for arm, group in subset.groupby("architecture"):
-        cell = group.groupby("tokens_after_target").agg(
-            accuracy=("correct", "mean"), window=("sliding_window", "first")
+        cell = group.groupby(design_key).agg(
+            accuracy=("correct", "mean"),
+            coordinate=(coord, "mean"),
+            window=("sliding_window", "first"),
         ).reset_index()
         if len(cell) < 2:
             rows.append({"architecture": arm, "slope": np.nan})
             continue
-        x = np.log2(cell["tokens_after_target"].to_numpy(float) / cell["window"].to_numpy(float))
+        x = np.log2(cell["coordinate"].to_numpy(float) / cell["window"].to_numpy(float))
         rows.append({"architecture": arm, "slope": float(np.polyfit(x, stats.logit(cell["accuracy"]), 1)[0])})
     return pd.DataFrame(rows)
 

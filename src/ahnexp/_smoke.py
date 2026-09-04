@@ -43,6 +43,11 @@ def fake_results(n_items: int = 20, seeds: tuple[int, ...] = (0, 1, 2, 3)) -> pd
                         "architecture": arm,
                         "seed": seed,
                         "tokens_after_target": pressure,
+                        "requested_tokens_after_target": pressure,
+                        # the fixed question/instruction/template block adds a
+                        # roughly constant offset over the distractor block
+                        "model_tokens_after_target": pressure + 55,
+                        "target_fact_tokens": 12,
                         "sliding_window": WINDOW,
                         "fact_type": fact_type,
                         "distractor_density": "high" if index % 2 else "low",
@@ -51,11 +56,13 @@ def fake_results(n_items: int = 20, seeds: tuple[int, ...] = (0, 1, 2, 3)) -> pd
                         "correct": correct,
                         "abstained": 0,
                         "confidence": confidence,
+                        "n_new_tokens": 3,
                         "prediction": "x",
                         "gold": "x",
                     })
 
-    return schema.derive_memory_condition(pd.DataFrame(rows))
+    df = schema.derive_memory_condition(pd.DataFrame(rows))
+    return schema.derive_boundary_conditions(df, strict=True)
 
 
 def main() -> None:

@@ -39,7 +39,14 @@ DESIGN = (
     Column("model_tokens_after_target", "int64",
            "Every token after the target in the tokenised model input (distractors + "
            "question/instruction + chat-template suffix); the exact/recurrent boundary "
-           "is measured against this"),
+           "is measured against this, and it is the scientific pressure coordinate for "
+           "the H1/H2/H3 curves"),
+    Column("target_fact_tokens", "int64",
+           "In-context tokenised length of the target sentence (`n_through_target - "
+           "n_before_target` in `dataset.build_trajectory`). The target is a span, not "
+           "a point; with `model_tokens_after_target`, `n_new_tokens` and "
+           "`sliding_window` this locates the span relative to the compression "
+           "boundary. Optional: absent from frames built before it existed"),
     Column("sliding_window", "int64", "Window length in force, for normalisation"),
     Column("memory_condition", "string", "exact_memory | recurrent_memory"),
     Column("fact_type", "string", "Category from config/facts.yaml"),
@@ -69,9 +76,40 @@ REQUIRED = {
     "core": ("item_id", "architecture", "seed", "tokens_after_target", "sliding_window",
              "memory_condition", "correct"),
     "h1": ("fact_type",),
-    "h2": (),
+    "h2": ("model_tokens_after_target",),
     "h3": ("confidence",),
 }
+
+# The design lever (what the grid requested) and the scientific pressure coordinate
+# (what the model actually saw after the target). Analyses group / match on the
+# former and plot / fit against the latter. Both fall back to `tokens_after_target`
+# for frames built before the richer columns existed (the pilot CSV, old parquets,
+# synthetic fixtures).
+_DESIGN_KEY = "requested_tokens_after_target"
+_COORDINATE = "model_tokens_after_target"
+
+
+def pressure_design_key(df: pd.DataFrame) -> str:
+    """Column identifying a trial's requested pressure level (grouping / matching)."""
+    return _DESIGN_KEY if _DESIGN_KEY in df.columns else "tokens_after_target"
+
+
+def pressure_coordinate(df: pd.DataFrame) -> str:
+    """Column holding the realised pressure coordinate (the scientific x-axis)."""
+    return _COORDINATE if _COORDINATE in df.columns else "tokens_after_target"
+
+
+_BOUNDARY_PRIMITIVES = (
+    "model_tokens_after_target", "target_fact_tokens", "n_new_tokens", "sliding_window",
+)
+_BOUNDARY_DERIVED = (
+    "target_start_distance_prefill",
+    "target_fully_exact_at_prefill",
+    "target_partially_compressed_at_prefill",
+    "target_end_compressed_at_prefill",
+    "target_fully_exact_through_generation",
+    "target_end_crosses_during_generation",
+)
 
 
 def empty_frame() -> pd.DataFrame:
@@ -101,7 +139,9 @@ def validate(df: pd.DataFrame, *, needs: tuple[str, ...] = ("core",)) -> pd.Data
         if not conf.between(0.0, 1.0).all():
             raise ValueError("`confidence` must lie in [0, 1].")
 
-    duplicated = df.duplicated(subset=["item_id", "architecture", "seed", "tokens_after_target"])
+    duplicated = df.duplicated(
+        subset=["item_id", "architecture", "seed", pressure_design_key(df)]
+    )
     if duplicated.any():
         raise ValueError(f"{int(duplicated.sum())} duplicated trials in the results frame.")
 
@@ -125,6 +165,46 @@ def derive_memory_condition(df: pd.DataFrame) -> pd.DataFrame:
     out["memory_condition"] = (after >= out["sliding_window"]).map(
         {True: "recurrent_memory", False: "exact_memory"}
     )
+    return out
+
+
+def derive_boundary_conditions(df: pd.DataFrame, *, strict: bool = False) -> pd.DataFrame:
+    """Span/prefill/generation boundary variables, from the recorded primitives.
+
+    The target fact is a span of `target_fact_tokens`, not a point. During prefill
+    the AHN kernel compresses everything more than `sliding_window` tokens before
+    the prompt end; each decode step compresses one more position. These flags say
+    where the target span sits relative to that moving boundary, using the *actual*
+    `n_new_tokens` (`max_new_tokens` is only a conservative design bound).
+
+    `strict=True` (the run pipeline) raises if any primitive is missing. `strict=
+    False` (legacy parquet / exploratory) emits the derived columns as NA instead.
+    Never called by `validate`; additive, and does not touch `memory_condition`.
+    """
+    out = df.copy()
+    missing = [c for c in _BOUNDARY_PRIMITIVES if c not in out.columns]
+    if missing:
+        if strict:
+            raise ValueError(
+                "derive_boundary_conditions(strict=True) needs "
+                f"{list(_BOUNDARY_PRIMITIVES)}; missing {missing}"
+            )
+        for name in _BOUNDARY_DERIVED:
+            out[name] = pd.NA
+        return out
+
+    w = out["sliding_window"]
+    mtat = out["model_tokens_after_target"]
+    span = out["target_fact_tokens"]
+    gen = out["n_new_tokens"]
+    start_distance = mtat + span
+
+    out["target_start_distance_prefill"] = start_distance
+    out["target_fully_exact_at_prefill"] = start_distance <= w
+    out["target_partially_compressed_at_prefill"] = (mtat < w) & (start_distance > w)
+    out["target_end_compressed_at_prefill"] = mtat >= w
+    out["target_fully_exact_through_generation"] = (mtat + span + gen) <= w
+    out["target_end_crosses_during_generation"] = (mtat < w) & ((mtat + gen) >= w)
     return out
 
 

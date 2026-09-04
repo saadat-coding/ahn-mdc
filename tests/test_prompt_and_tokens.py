@@ -112,6 +112,32 @@ class TestTokenAccounting(unittest.TestCase):
             self.assertLessEqual(max(overheads) - min(overheads), 2,
                                  f"{it.item_id}: overhead not ~constant across pressure: {overheads}")
 
+    def test_target_fact_tokens_matches_the_in_context_accounting_identity(self):
+        # Primary: target_fact_tokens is exactly n_through_target - n_before_target,
+        # the same two tokeniser calls build_trajectory makes.
+        for tok in (_PlainTokenizer(), _TemplatedTokenizer()):
+            for it in self.items[:4]:
+                for pressure in (0, 32, 128):
+                    tj = dataset.build_trajectory(it, tok, tokens_after_target=pressure, seed=0)
+                    prompt = tj["prompt"]
+                    start = prompt.index(it.fact.text)
+                    cut = start + len(it.fact.text)
+                    n_before = len(tok(prompt[:start])["input_ids"])
+                    n_through = len(tok(prompt[:cut])["input_ids"])
+                    self.assertEqual(tj["target_fact_tokens"], n_through - n_before)
+                    self.assertGreater(tj["target_fact_tokens"], 0)
+                    # Secondary sanity only: standalone tokenisation is close, but BPE
+                    # boundary effects at the surrounding "- " / "." can differ.
+                    standalone = len(tok(it.fact.text)["input_ids"])
+                    self.assertLessEqual(abs(tj["target_fact_tokens"] - standalone), 4)
+
+    def test_target_fact_tokens_is_stable_across_the_pressure_sweep(self):
+        tok = _TemplatedTokenizer()
+        for it in self.items[:4]:
+            seen = {dataset.build_trajectory(it, tok, tokens_after_target=p, seed=0)["target_fact_tokens"]
+                    for p in (0, 16, 64, 200)}
+            self.assertEqual(len(seen), 1, f"{it.item_id}: target span length drifted: {seen}")
+
     def test_h1_iv_unchanged_by_prompt_format(self):
         # tokens_after_target must equal the distractor-block token count, whether or
         # not a chat template is applied.
@@ -182,7 +208,8 @@ class TestSchemaColumns(unittest.TestCase):
     def test_new_columns_registered(self):
         names = {c.name for c in schema.COLUMNS}
         for expected in ("malformed", "answer_canonical", "n_new_tokens",
-                         "model_tokens_after_target", "requested_tokens_after_target"):
+                         "model_tokens_after_target", "requested_tokens_after_target",
+                         "target_fact_tokens"):
             self.assertIn(expected, names)
         self.assertIn("prediction", names)
 
@@ -211,9 +238,11 @@ class TestRequestedTokensProvenance(unittest.TestCase):
         # the key must be inside the trajectory-copy tuple, not merely mentioned
         copy_block = src.split("record = {", 1)[1].split("}", 1)[0]
         self.assertIn('"requested_tokens_after_target"', copy_block)
+        self.assertIn('"target_fact_tokens"', copy_block)
 
     def test_empty_frame_carries_the_column(self):
         self.assertIn("requested_tokens_after_target", schema.empty_frame().columns)
+        self.assertIn("target_fact_tokens", schema.empty_frame().columns)
 
     def test_backwards_compatible_frame_without_the_column_still_validates(self):
         import pandas as pd

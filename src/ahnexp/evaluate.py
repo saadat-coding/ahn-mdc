@@ -240,7 +240,8 @@ def run_grid(
                         **{k: trajectory[k] for k in
                            ("item_id", "fact_type", "distractor_density", "target_position",
                             "tokens_after_target", "requested_tokens_after_target",
-                            "model_tokens_after_target", "context_tokens", "seed")},
+                            "model_tokens_after_target", "target_fact_tokens",
+                            "context_tokens", "seed")},
                         "architecture": name,
                         "sliding_window": window,
                         **run_trial(model, tokenizer, trajectory),
@@ -256,6 +257,7 @@ def run_grid(
 
     models.assert_matched(descriptions)
     df = schema.derive_memory_condition(pd.DataFrame(records))
+    df = schema.derive_boundary_conditions(df, strict=True)
     df["scorer_version"] = SCORER_VERSION
     return schema.validate(df, needs=("core", "h1", "h3"))
 
