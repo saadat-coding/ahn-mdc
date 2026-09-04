@@ -1,0 +1,326 @@
+diff --git a/config/experiment.yaml b/config/experiment.yaml
+index f5b4a15..ad3869a 100644
+--- a/config/experiment.yaml
++++ b/config/experiment.yaml
+@@ -173,10 +173,30 @@ calibration:
+ # Acceptance gates — nothing leaves the repo until these pass
+ # ---------------------------------------------------------------------------
+ acceptance:
+-  exact_memory_accuracy:
+-    defensible: [0.70, 0.80]
+-    acceptable_max: 0.85
+-    red_flag_at: 0.90              # task already solved by existing models
++  exact_memory:
++    # Per fact type, exact-memory condition, n >= statistics.min_cell_size.
++    # A high exact-memory baseline is DESIRABLE for a memory-degradation study: it
++    # makes recurrent failures attributable to compression, not to baseline task
++    # incompetence. There is deliberately NO upper bound — the old red_flag_at:
++    # 0.90 imported a benchmark-hardness criterion that does not apply here.
++    # Validity (not accuracy) is guarded by target_removed_validity.
++    retrievability_min: 0.85        # PASS  — the model demonstrably does the task in-window
++    soft_floor: 0.70               # 0.70-0.85 -> WARN "baseline soft; degradation magnitude confounded"
++                                   # < 0.70   -> FAIL "not measuring memory"
++  target_removed_validity:
++    # From the forced-baseline diagnostic (protocol/forced_baseline_diagnostic.md):
++    # with the target sentence removed but the forced-answer instruction, question
++    # and distractors kept, a valid fact type collapses to near chance — the target
++    # must be doing the work.
++    max_removed_forced_accuracy: 0.30          # free-response types
++    max_removed_forced_accuracy_two_way: 0.65  # temporal / any 2-way question
++    min_present_minus_removed: 0.40
++    validated:
++      numerical:        {removed_forced_recurrent: 0.00, status: PASS}
++      entity-attribute: {removed_forced_recurrent: 0.06, status: PASS}
++      multi-hop:        {removed_forced_recurrent: 0.00, status: PASS}
++      contradictory:    {removed_forced_recurrent: 0.00, status: PASS}
++      temporal:         {status: PENDING}   # question-order repair (open_decisions #7b) awaiting 72-trial validation
+   require_threshold_locked: true
+   require_threshold_clears_window: true
+   require_matched_design: true
+diff --git a/src/ahnexp/report.py b/src/ahnexp/report.py
+index 077f1f6..33e8827 100644
+--- a/src/ahnexp/report.py
++++ b/src/ahnexp/report.py
+@@ -17,33 +17,29 @@ from ahnexp import config, models, stats
+ 
+ def gate_report(df: pd.DataFrame) -> pd.DataFrame:
+     """Everything that must pass before a number leaves the repo."""
+-    gates = config.experiment()["acceptance"]
+-    band = gates["exact_memory_accuracy"]
++    acc = config.experiment()["acceptance"]
++    em, val = acc["exact_memory"], acc["target_removed_validity"]
+     checks: list[dict[str, Any]] = []
+ 
+-    for arm, group in df.groupby("architecture"):
+-        exact = group[group["memory_condition"] == "exact_memory"]["correct"]
+-        checks.append({"gate": "exact_memory_accuracy", "scope": arm, **_band_verdict(exact, band)})
+-
+-    # Per-fact-type exact-memory floor. The per-arm gate above pools all five
+-    # types, so one weak category — e.g. an inferential question the model
+-    # abstains on even in-window — can hide behind a strong average or even read
+-    # as "too easy". WARN only: a low-N pilot is noisy and the reword/repair call
+-    # is a human one. Deliberately never added to `blocking()`.
+-    floor = band["defensible"][0]
++    # Exact-memory is the CONTROL condition: the gate is a per-fact-type retrievability
++    # MINIMUM ("the model can do this in-window"), not a maximum. A near-ceiling
++    # baseline is good, provided the task is not shortcut-solvable — which is what
++    # target_removed_validity checks (from the forced-baseline diagnostic).
+     for fact_type, group in df.groupby("fact_type"):
+         exact = group[group["memory_condition"] == "exact_memory"]["correct"]
+-        if len(exact) < 4:
+-            continue
+-        accuracy = float(exact.mean())
+-        if accuracy < floor:
+-            checks.append({
+-                "gate": "exact_memory_by_fact_type",
+-                "scope": str(fact_type),
+-                "verdict": "WARN",
+-                "detail": f"{accuracy:.0%} exact-memory accuracy over {len(exact)} trials "
+-                          "— pooled arm gate can mask this; inspect abstention / malformed",
+-            })
++        checks.append({"gate": "exact_memory_retrievability", "scope": str(fact_type),
++                       **_retrievability_verdict(exact, em)})
++
++    for fact_type in sorted(df["fact_type"].unique()):
++        checks.append({"gate": "target_removed_validity", "scope": str(fact_type),
++                       **_validity_verdict(str(fact_type), val)})
++
++    # Pooled exact-memory accuracy per arm — informational, NEVER gated.
++    for arm, group in df.groupby("architecture"):
++        exact = group[group["memory_condition"] == "exact_memory"]["correct"]
++        a = float(exact.mean()) if len(exact) else float("nan")
++        checks.append({"gate": "exact_memory_pooled", "scope": arm, "verdict": "REPORT",
++                       "detail": f"{a:.1%} pooled over fact types ({len(exact)} trials) — informational"})
+ 
+     window = int(df["sliding_window"].iloc[0])
+     checks.append({"gate": "window_is_exceeded", "scope": "design", **_window_verdict(df, window)})
+@@ -82,24 +78,42 @@ def gate_report(df: pd.DataFrame) -> pd.DataFrame:
+     return pd.DataFrame(checks)
+ 
+ 
+-def _band_verdict(exact: pd.Series, band: dict) -> dict[str, str]:
+-    if not len(exact):
+-        return {"verdict": "FAIL", "detail": "no exact-memory trials"}
++def _retrievability_verdict(exact: pd.Series, em: dict) -> dict[str, str]:
++    """Per fact type: can the model do this task when the fact is in the window?
++
++    A MINIMUM, not a maximum. High exact-memory accuracy is desirable — it is the
++    control that makes recurrent failures attributable to compression.
++    """
++    if len(exact) < 4:
++        return {"verdict": "SKIP", "detail": f"only {len(exact)} exact-memory trials"}
+     accuracy = float(exact.mean())
+-    if accuracy >= band["red_flag_at"]:
+-        return {"verdict": "RED_FLAG",
+-                "detail": f"{accuracy:.1%} >= {band['red_flag_at']:.0%}: task already solved, "
+-                          "harden the fact/distractor design"}
+-    if accuracy > band["acceptable_max"]:
++    if accuracy >= em["retrievability_min"]:
++        return {"verdict": "PASS",
++                "detail": f"{accuracy:.0%} >= {em['retrievability_min']:.0%} ({len(exact)} trials)"}
++    if accuracy >= em["soft_floor"]:
+         return {"verdict": "WARN",
+-                "detail": f"{accuracy:.1%} above the {band['acceptable_max']:.0%} upper bound"}
+-    if band["defensible"][0] <= accuracy <= band["defensible"][1]:
+-        return {"verdict": "PASS", "detail": f"{accuracy:.1%} inside the defensible band"}
+-    if accuracy > band["defensible"][1]:
++                "detail": f"{accuracy:.0%} in [{em['soft_floor']:.0%}, {em['retrievability_min']:.0%}) "
++                          "— baseline soft; degradation magnitude confounded"}
++    return {"verdict": "FAIL",
++            "detail": f"{accuracy:.0%} < {em['soft_floor']:.0%} — the model cannot do this task "
++                      "in-window; recurrent failures are not attributable to memory"}
++
++
++def _validity_verdict(fact_type: str, val: dict) -> dict[str, str]:
++    """Per fact type: is the target sentence doing the work? (forced-baseline diagnostic)"""
++    entry = (val.get("validated") or {}).get(fact_type)
++    if entry is None:
++        return {"verdict": "WARN", "detail": "no target-removed validation on record"}
++    status = entry.get("status")
++    if status == "PASS":
++        r = entry.get("removed_forced_recurrent")
++        detail = (f"target-removed forced recurrent accuracy {r:.0%} — the target does the work"
++                  if r is not None else "target-removed collapses to chance")
++        return {"verdict": "PASS", "detail": detail}
++    if status == "PENDING":
+         return {"verdict": "WARN",
+-                "detail": f"{accuracy:.1%} above the band, within the "
+-                          f"{band['acceptable_max']:.0%} bound"}
+-    return {"verdict": "WARN", "detail": f"{accuracy:.1%} below the {band['defensible'][0]:.0%} floor"}
++                "detail": "target-removed validation PENDING — not for evidentiary use"}
++    return {"verdict": "FAIL", "detail": f"target-removed validation status {status!r}"}
+ 
+ 
+ def _window_verdict(df: pd.DataFrame, window: int) -> dict[str, str]:
+@@ -119,7 +133,9 @@ def _window_verdict(df: pd.DataFrame, window: int) -> dict[str, str]:
+ 
+ 
+ def blocking(gates: pd.DataFrame) -> pd.DataFrame:
+-    return gates[gates["verdict"].isin(["FAIL", "RED_FLAG", "BLOCKED"])]
++    # RED_FLAG retired with the exact-memory gate reframe: a high, valid baseline
++    # is not a defect. WARN / REPORT / SKIP never block.
++    return gates[gates["verdict"].isin(["FAIL", "BLOCKED"])]
+ 
+ 
+ # ---------------------------------------------------------------------------
+diff --git a/tests/test_report_gates.py b/tests/test_report_gates.py
+index 62eada7..22d77e4 100644
+--- a/tests/test_report_gates.py
++++ b/tests/test_report_gates.py
+@@ -1,9 +1,10 @@
+-"""`report.gate_report` — the `exact_memory_by_fact_type` WARN check.
++"""`report.gate_report` — exact-memory acceptance (reframed).
+ 
+-The per-arm `exact_memory_accuracy` gate pools all five fact types, so a single
+-weak category can hide behind a strong average (or read as "too easy"). This adds
+-a WARN — never a hard failure, never in `report.blocking()` — when any one fact
+-type falls below the defensible exact-memory floor.
++Exact-memory is the CONTROL condition. The gate is a per-fact-type retrievability
++MINIMUM ("the model can do this in-window"), not a maximum — a near-ceiling
++baseline is desirable. Validity (not accuracy) is guarded separately by
++`target_removed_validity`, fed by the forced-baseline diagnostic. Pooled
++exact-memory accuracy is reported, never gated. RED_FLAG is retired.
+ 
+ No GPU. `python -m unittest discover -s tests`.
+ """
+@@ -25,20 +26,21 @@ from ahnexp import config, report
+ _TYPES = ["numerical", "temporal", "entity-attribute", "multi-hop", "contradictory"]
+ 
+ 
+-def _frame(per_arm_exact: dict[str, list[int]], arms=("deltanet", "gated_deltanet")) -> pd.DataFrame:
+-    """`per_arm_exact[ft]` = the 0/1 exact-memory outcomes for one arm (staged
+-    Pass 1 shape: 2 items x 2 exact levels = 4). Replicated across arms, so the
+-    pooled exact-memory count per fact type is len(list) * len(arms).
++def _blocking_gates(gates):
++    return set(gates[gates["verdict"].isin(["FAIL", "BLOCKED"])]["gate"])
++
+ 
+-    Adds one recurrent trial per (item, arm) at level 512 so window_is_exceeded
+-    and the H-checks have data.
+-    """
++def _frame(per_arm_exact: dict[str, list[int]], arms=("deltanet", "gated_deltanet")) -> pd.DataFrame:
++    """`per_arm_exact[ft]` = the 0/1 exact-memory outcomes for one arm (2 items x
++    2 exact levels = 4). Replicated across arms -> pooled exact count per type is
++    len(list) * len(arms). One recurrent trial per (item, arm) so the other gates
++    have data."""
+     rows = []
+     for arm in arms:
+         for ft in _TYPES:
+             outcomes = per_arm_exact[ft]
+             for k, c in enumerate(outcomes):
+-                item = f"{ft}_{k // 2:04d}"          # 2 items: k=0,1 -> item 0 ; k=2,3 -> item 1
++                item = f"{ft}_{k // 2:04d}"
+                 lvl = [0, 128][k % 2]
+                 rows.append(dict(item_id=item, architecture=arm, seed=0, fact_type=ft,
+                                  tokens_after_target=lvl, model_tokens_after_target=lvl + 50,
+@@ -53,60 +55,71 @@ def _frame(per_arm_exact: dict[str, list[int]], arms=("deltanet", "gated_deltane
+     return pd.DataFrame(rows)
+ 
+ 
+-class TestExactMemoryByFactType(unittest.TestCase):
++class TestExactMemoryRetrievability(unittest.TestCase):
+     def setUp(self):
+         config.clear_caches()
+ 
+-    def test_warns_on_a_single_weak_type_that_the_pooled_gate_masks(self):
+-        # per arm: 3 types 4/4, contradictory 3/4, temporal 1/4  -> 16/20 = 0.80
+-        # -> the per-arm exact_memory_accuracy gate lands in the defensible band (PASS).
+-        # temporal pooled over 2 arms = 2/8 = 0.25 -> below the 0.70 floor -> WARN.
++    def test_high_accuracy_is_PASS_not_a_red_flag(self):
++        df = _frame({ft: [1, 1, 1, 1] for ft in _TYPES})   # 100% every type
++        gates = report.gate_report(df)
++        g = gates[gates.gate == "exact_memory_retrievability"]
++        self.assertEqual(set(g["verdict"]), {"PASS"})
++        self.assertFalse((gates["verdict"] == "RED_FLAG").any())
++        self.assertNotIn("exact_memory_retrievability", _blocking_gates(gates))
++
++    def test_pooled_accuracy_is_reported_never_gated(self):
++        df = _frame({ft: [1, 1, 1, 1] for ft in _TYPES})
++        gates = report.gate_report(df)
++        pooled = gates[gates.gate == "exact_memory_pooled"]
++        self.assertEqual(set(pooled["verdict"]), {"REPORT"})
++        self.assertTrue((report.blocking(gates)["gate"] != "exact_memory_pooled").all())
++
++    def test_one_weak_type_FAILS_on_its_own_row_and_blocks(self):
++        # temporal 2/8 = 0.25 ; the other four 100%. Pooled ~0.85 -> only REPORT.
+         df = _frame({
+             "numerical": [1, 1, 1, 1], "entity-attribute": [1, 1, 1, 1], "multi-hop": [1, 1, 1, 1],
+-            "contradictory": [1, 1, 1, 0], "temporal": [1, 0, 0, 0],
++            "contradictory": [1, 1, 1, 1], "temporal": [1, 0, 0, 0],
+         })
+         gates = report.gate_report(df)
+         g = gates.set_index(["gate", "scope"])["verdict"].to_dict()
+-
+-        self.assertEqual(g.get(("exact_memory_accuracy", "deltanet")), "PASS")
+-        self.assertEqual(g.get(("exact_memory_accuracy", "gated_deltanet")), "PASS")
+-
+-        warn = gates[gates["gate"] == "exact_memory_by_fact_type"]
+-        self.assertEqual(list(warn["scope"]), ["temporal"])
+-        self.assertEqual(list(warn["verdict"]), ["WARN"])
+-        self.assertIn("over 8 trials", warn.iloc[0]["detail"])
+-
++        self.assertEqual(g[("exact_memory_retrievability", "temporal")], "FAIL")
++        for ft in ("numerical", "entity-attribute", "multi-hop", "contradictory"):
++            self.assertEqual(g[("exact_memory_retrievability", ft)], "PASS")
+         blk = report.blocking(gates)
+-        self.assertTrue((blk["gate"] != "exact_memory_by_fact_type").all())
++        self.assertIn(("exact_memory_retrievability", "temporal"),
++                      set(zip(blk["gate"], blk["scope"])))
+ 
+-    def test_silent_when_every_type_clears_the_floor(self):
+-        ok = [1, 1, 1, 0]  # 3/4 per arm -> 6/8 pooled = 0.75 >= 0.70
+-        df = _frame({ft: ok for ft in _TYPES})
++    def test_soft_band_is_WARN_not_FAIL(self):
++        df = _frame({ft: [1, 1, 1, 0] for ft in _TYPES})   # 6/8 = 0.75 -> [0.70, 0.85)
+         gates = report.gate_report(df)
+-        self.assertTrue(gates[gates["gate"] == "exact_memory_by_fact_type"].empty)
++        g = gates[gates.gate == "exact_memory_retrievability"]
++        self.assertEqual(set(g["verdict"]), {"WARN"})
++        self.assertNotIn("exact_memory_retrievability", _blocking_gates(gates))
+ 
+-    def test_skips_a_type_with_fewer_than_four_exact_trials(self):
++    def test_thin_type_is_SKIP(self):
+         df = _frame({ft: [1, 1, 1, 1] for ft in _TYPES})
+-        tmp_exact = df.index[(df["fact_type"] == "temporal")
+-                             & (df["memory_condition"] == "exact_memory")]
+-        df = df.drop(index=tmp_exact[3:]).copy()          # leave 3 temporal exact rows
+-        df.loc[tmp_exact[:3], "correct"] = 0              # all wrong
+-        m = (df["fact_type"] == "temporal") & (df["memory_condition"] == "exact_memory")
+-        self.assertEqual(int(m.sum()), 3)
++        tmp = df.index[(df.fact_type == "temporal") & (df.memory_condition == "exact_memory")]
++        df = df.drop(index=tmp[3:]).copy()                 # 3 temporal exact rows
++        df.loc[tmp[:3], "correct"] = 0
+         gates = report.gate_report(df)
+-        self.assertTrue(gates[(gates["gate"] == "exact_memory_by_fact_type")
+-                              & (gates["scope"] == "temporal")].empty)
++        v = gates[(gates.gate == "exact_memory_retrievability") & (gates.scope == "temporal")]
++        self.assertEqual(list(v["verdict"]), ["SKIP"])
++        self.assertNotIn("exact_memory_retrievability", _blocking_gates(gates))
+ 
+-    def test_n8_operating_point_matches_staged_pass_1(self):
+-        df = _frame({
+-            "numerical": [1, 1, 1, 1], "entity-attribute": [1, 1, 1, 1], "multi-hop": [1, 1, 1, 1],
+-            "contradictory": [1, 1, 1, 1], "temporal": [1, 1, 0, 0],   # 4/8 pooled = 0.50
+-        })
+-        exact_temporal = df[(df.fact_type == "temporal") & (df.memory_condition == "exact_memory")]
+-        self.assertEqual(len(exact_temporal), 8)
+-        warn = report.gate_report(df)
+-        warn = warn[warn["gate"] == "exact_memory_by_fact_type"]
+-        self.assertEqual(list(warn["scope"]), ["temporal"])
++
++class TestTargetRemovedValidity(unittest.TestCase):
++    def setUp(self):
++        config.clear_caches()
++
++    def test_validated_types_PASS_and_pending_temporal_WARNs(self):
++        df = _frame({ft: [1, 1, 1, 1] for ft in _TYPES})
++        gates = report.gate_report(df)
++        g = gates.set_index(["gate", "scope"])["verdict"].to_dict()
++        for ft in ("numerical", "entity-attribute", "multi-hop", "contradictory"):
++            self.assertEqual(g[("target_removed_validity", ft)], "PASS")
++        self.assertEqual(g[("target_removed_validity", "temporal")], "WARN")
++        # a PENDING/WARN validity never blocks
++        self.assertTrue((report.blocking(gates)["gate"] != "target_removed_validity").all())
+ 
+ 
+ if __name__ == "__main__":

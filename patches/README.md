@@ -88,3 +88,63 @@ only file changed.
 patch at runtime. If you run the diagnostic before this patch lands, it reports
 `sliding_window_type: random` / `ahn_position: random` in the pre/post block and
 notes they are inert — that is expected and correct.
+
+---
+
+## `exact-memory-gate-reframe.patch` — **PROPOSED, NOT APPLIED** — awaiting **Juan**
+
+Reframes the exact-memory acceptance gate from a pooled band that *penalises*
+high accuracy to a **per-fact-type retrievability minimum** plus a
+**target-removed validity check**. open_decisions.md #5a (new).
+
+### What it changes
+- `config/experiment.yaml` — `acceptance:` block:
+  - `exact_memory_accuracy: {defensible: [0.70, 0.80], acceptable_max: 0.85, red_flag_at: 0.90}`
+    → `exact_memory: {retrievability_min: 0.85, soft_floor: 0.70}` (no upper bound)
+  - new `target_removed_validity:` with the frozen forced-baseline results
+    (numerical / entity-attribute / multi-hop / contradictory = PASS; temporal = PENDING).
+- `src/ahnexp/report.py` — `gate_report()`:
+  - per-arm `exact_memory_accuracy` band + the `exact_memory_by_fact_type` WARN
+    → per-fact-type `exact_memory_retrievability` (PASS ≥ 0.85 / WARN [0.70, 0.85) /
+    FAIL < 0.70 / SKIP < 4 trials) + per-fact-type `target_removed_validity`
+    (reads the config `validated` map) + `exact_memory_pooled` (verdict `REPORT`,
+    never gated).
+  - `_band_verdict` → `_retrievability_verdict` + `_validity_verdict`.
+  - `blocking()` drops `RED_FLAG` (retired) → `["FAIL", "BLOCKED"]`.
+- `tests/test_report_gates.py` — rewritten for the new gate names/semantics.
+
+Nothing else — no prompts, dataset, scorer, metrics, window, matched config, or
+H1/H2/H3 analysis.
+
+### Why
+The forced-baseline diagnostic showed that for numerical / entity-attribute /
+multi-hop / contradictory, **exact-memory 100 % with target-removed forced
+accuracy ≈ 0 is the ideal control** — it makes recurrent failures attributable to
+compression, not baseline incompetence. The old `red_flag_at: 0.90` ("task
+already solved by existing models") is a benchmark-*hardness* criterion; this
+project's deliverable is mechanistic H1/H2/H3 claims. Pooling the five types also
+hid temporal's 25–50 % exact-memory failure inside a ~0.85–0.90 average.
+
+The right requirement is: (a) per type, the model can do the task in-window
+(minimum, not maximum); (b) per type, removing the target collapses accuracy to
+chance (validity / no shortcut). `target_removed_validity` is fed by the
+forced-baseline diagnostics, not recomputed per run.
+
+### Approval checklist (Juan)
+- [ ] Replace the mentor's 70–80 % band with a per-type ≥ 0.85 retrievability
+      minimum for this study (a high, *valid* baseline is desirable here).
+- [ ] `soft_floor: 0.70` / `retrievability_min: 0.85` are the right cut points.
+- [ ] `max_removed_forced_accuracy` 0.30 (free-response) / 0.65 (two-way) is a
+      reasonable validity bound.
+- [ ] OK to retire `RED_FLAG` from `blocking()`.
+- [ ] The four `validated` PASS rows correctly reflect the forced-baseline result.
+
+### Apply (after approval)
+```bash
+git apply patches/exact-memory-gate-reframe.patch
+uv run python -m unittest discover -s tests      # 134 pass
+uv run python -m ahnexp._smoke                   # blocking: 1, unchanged
+```
+Verified locally: applies cleanly, all 134 tests pass, `_smoke` `blocking: 1`
+unchanged (synthetic `_smoke` accuracies ~0.75–0.80 now surface as
+`exact_memory_retrievability` WARN, which does not block).
