@@ -24,13 +24,20 @@ types:
     answer_hint: "Reply with only the name of the person who arrived first."
     h1_prediction: slower — binary orderings are guessable at 50% by chance
     caveat: >-
-      Two-way question, chance 0.5. Candidate order in the question is balanced
-      independently of the gold and of distractor_density
-      (dataset.temporal `swap_candidates`, driven from generate_items). The earlier
-      gold-always-first wording was solvable with zero reasoning or memory: the
-      forced-baseline diagnostic scored target-removed forced accuracy at 100%
-      (36/36 first-listed). Chance-correct before comparing this category against
-      the others, and re-validate the repaired form before evidentiary use.
+      Two-way question, chance 0.5. Two nuisance factors — which identity arrived
+      first / is the gold (higher- vs lower-numbered), and the gold's question
+      position (first vs second) — are assigned from a density-stratified,
+      seed-shuffled balanced plan (dataset._temporal_factor_plan). Earlier
+      direction determines the gold's identity, candidate order its position; the
+      assignment is seed-shuffled and balanced within each density level so that
+      the simple systematic Person-ID, numeric-order, candidate-position, and
+      density shortcuts identified by validation are removed. Temporal distractor
+      facts alternate relation direction (~50/50) so higher-first targets are not
+      distributionally unusual; the shared distractor RNG stream and every
+      non-temporal distractor are unchanged. The order-only repair (03e68f0)
+      failed validation: gold was the lower-numbered candidate on 12/12 items.
+      Chance-correct before comparing this category against the others, and
+      re-validate the repaired form before evidentiary use.
 
   entity-attribute:
     example: "Person_0's favorite color is blue."

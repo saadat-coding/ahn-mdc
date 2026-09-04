@@ -70,14 +70,18 @@ def numerical(i: int) -> Fact:
                 f"What is {person}'s employee ID?", value)
 
 
-def temporal(i: int, swap_candidates: bool = False) -> Fact:
-    early, late = f"Person_{i}", f"Person_{i + 1}"
-    # The fact keeps "<earlier> arrived before <later>" and the gold stays the
-    # earlier person (arrived first). Only the ORDER the two names are listed in
-    # the QUESTION is toggled — independently of the gold — so "the first-listed
-    # candidate" stops being a valid shortcut. The forced-baseline diagnostic
-    # found the old gold-always-first wording was solvable with zero reasoning or
-    # memory: target-removed forced accuracy 100%, 36/36 first-listed.
+def temporal(i: int, swap_candidates: bool = False, earlier_is_higher: bool = False) -> Fact:
+    lo, hi = f"Person_{i}", f"Person_{i + 1}"
+    # `earlier_is_higher` sets which identity arrived first and is therefore the
+    # gold (the higher- or the lower-numbered); `swap_candidates` sets whether the
+    # gold is listed first or second in the question. Earlier direction determines
+    # the gold's identity, candidate order its position; `generate_items` assigns
+    # the two from a density-stratified, seed-shuffled balanced plan
+    # (`_temporal_factor_plan`) so that the simple systematic Person-ID,
+    # numeric-order, candidate-position, and density shortcuts identified by
+    # validation are removed. Construct unchanged: one "<earlier> arrived before
+    # <later>" relation, question "Who arrived first, A or B?".
+    early, late = (hi, lo) if earlier_is_higher else (lo, hi)     # `early` == the gold
     first_q, second_q = (late, early) if swap_candidates else (early, late)
     return Fact("temporal", f"{early} arrived before {late}.",
                 f"Who arrived first, {first_q} or {second_q}?", early)
@@ -116,6 +120,58 @@ GENERATORS: dict[str, Callable[..., Fact]] = {
 
 
 # ---------------------------------------------------------------------------
+# Temporal nuisance-factor plan
+# ---------------------------------------------------------------------------
+
+_TEMPORAL_QUAD = ((False, False), (False, True), (True, False), (True, True))
+# (earlier_is_higher, swap_candidates)
+
+
+def _temporal_factor_plan(n_temporal: int, seed: int) -> list[tuple[bool, bool]]:
+    """(earlier_is_higher, swap_candidates) per temporal item, indexed by slot.
+
+    `generate_items` keeps its density rule unchanged, which gives temporal item
+    `slot` density `low` when slot is even and `high` when slot is odd. This
+    function stratifies by that split and, within each stratum, lays down blocks
+    of the four (earlier_is_higher, swap_candidates) cells, each block shuffled
+    with an RNG keyed on (seed, stratum, block). Within each density level the
+    four cells are exactly equal when the stratum count is divisible by 4 (so the
+    earlier-identity x gold-position x density design is a balanced 2x2x2 when
+    `n_temporal` is divisible by 8), and each marginal is exact when the stratum
+    count is even.
+
+    The assignment is seed-shuffled and balanced so that the simple systematic
+    Person-ID, numeric-order, candidate-position, and density shortcuts identified
+    by validation are removed. Deterministic for a seed; a different seed
+    reshuffles while keeping the balance. `n_temporal == 2` (the pilot) is too
+    small to stratify; pilot temporal is never cited as a result.
+    """
+    plan: list[tuple[bool, bool] | None] = [None] * n_temporal
+    for stratum in ("low", "high"):
+        slots = [k for k in range(n_temporal) if (k % 2) == (stratum == "high")]
+        cells: list[tuple[bool, bool]] = []
+        full, rem = divmod(len(slots), 4)
+        for block in range(full):
+            quad = list(_TEMPORAL_QUAD)
+            random.Random(f"ahn-temporal-factors:{seed}:{stratum}:{block}").shuffle(quad)
+            cells.extend(quad)
+        if rem:
+            rng_rem = random.Random(f"ahn-temporal-factors:{seed}:{stratum}:{full}")
+            if rem == 2:                                   # keep both marginals balanced
+                tail = [(False, False), (True, True)]
+                rng_rem.shuffle(tail)
+            else:                                          # rem 1 or 3: a seed-random subset
+                quad = list(_TEMPORAL_QUAD)
+                rng_rem.shuffle(quad)
+                tail = quad[:rem]
+            cells.extend(tail)
+        for slot, cell in zip(slots, cells):
+            plan[slot] = cell
+    assert all(c is not None for c in plan), plan
+    return plan  # type: ignore[return-value]
+
+
+# ---------------------------------------------------------------------------
 # Items
 # ---------------------------------------------------------------------------
 
@@ -131,21 +187,23 @@ def generate_items(n_items: int, seed: int = 0, pool_size: int = 4000) -> list[I
     # are chosen from this, not from `index`, so they cycle through the whole
     # answer space instead of phase-locking with `index % len(types)`.
     slot_counter: dict[str, int] = {}
+    n_temporal = sum(1 for i in range(n_items) if types[i % len(types)] == "temporal")
+    temporal_plan = _temporal_factor_plan(n_temporal, seed)
 
     items: list[Item] = []
     for index in range(n_items):
         fact_type = types[index % len(types)]
-        density = densities[(index // len(types)) % len(densities)]
+        density = densities[(index // len(types)) % len(densities)]   # unchanged, temporal included
         slot = slot_counter.get(fact_type, 0)
         slot_counter[fact_type] = slot + 1
         if fact_type in _CATEGORICAL_TYPES:
             target = GENERATORS[fact_type](index, slot)
         elif fact_type == "temporal":
-            # Question candidate order is balanced independently of the gold (gold
-            # is always Person_{index}) and of distractor_density (which is
-            # slot % 2 for temporal). (slot // 2) % 2 gives an exact 2x2 balance
-            # with density; see tests/test_dataset_temporal_order.py.
-            target = GENERATORS["temporal"](index, swap_candidates=bool((slot // 2) % 2))
+            # Nuisance factors from a density-stratified, seed-shuffled balanced
+            # plan; the stratum split (slot % 2) mirrors the density rule above.
+            earlier_is_higher, swap_candidates = temporal_plan[slot]
+            target = GENERATORS["temporal"](
+                index, swap_candidates=swap_candidates, earlier_is_higher=earlier_is_higher)
         else:
             target = GENERATORS[fact_type](index)
         item = Item(
@@ -232,6 +290,7 @@ def _distractor_pool(
     pool: list[Fact] = []
     cursor = 1
     attempts = 0
+    temporal_dir = 0                       # local; balances temporal-distractor relation direction
     while len(pool) < size:
         attempts += 1
         if attempts > size * 40:
@@ -240,7 +299,17 @@ def _distractor_pool(
                 "Widen the answer space or lower pool_size."
             )
         dtype = fact_type if density == "high" and rng.random() < 0.8 else rng.choice(types)
-        candidate = GENERATORS[dtype](offset + cursor * 7919)
+        if dtype == "temporal":
+            # ~50/50 lower-first / higher-first, so an `earlier_is_higher=True`
+            # target is not against a uniform distractor prior. Local counter, no
+            # extra RNG draw; the density gate above and the `_leaks_answer` test
+            # below are byte-identical to before (both directions carry the same
+            # two Person numbers), so every non-temporal distractor and the whole
+            # shared-RNG trajectory are unchanged.
+            candidate = temporal(offset + cursor * 7919, earlier_is_higher=bool(temporal_dir % 2))
+            temporal_dir += 1
+        else:
+            candidate = GENERATORS[dtype](offset + cursor * 7919)
         cursor += 1
         if _leaks_answer(candidate.text, forbidden):
             continue
