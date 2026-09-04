@@ -25,6 +25,26 @@ def gate_report(df: pd.DataFrame) -> pd.DataFrame:
         exact = group[group["memory_condition"] == "exact_memory"]["correct"]
         checks.append({"gate": "exact_memory_accuracy", "scope": arm, **_band_verdict(exact, band)})
 
+    # Per-fact-type exact-memory floor. The per-arm gate above pools all five
+    # types, so one weak category — e.g. an inferential question the model
+    # abstains on even in-window — can hide behind a strong average or even read
+    # as "too easy". WARN only: a low-N pilot is noisy and the reword/repair call
+    # is a human one. Deliberately never added to `blocking()`.
+    floor = band["defensible"][0]
+    for fact_type, group in df.groupby("fact_type"):
+        exact = group[group["memory_condition"] == "exact_memory"]["correct"]
+        if len(exact) < 4:
+            continue
+        accuracy = float(exact.mean())
+        if accuracy < floor:
+            checks.append({
+                "gate": "exact_memory_by_fact_type",
+                "scope": str(fact_type),
+                "verdict": "WARN",
+                "detail": f"{accuracy:.0%} exact-memory accuracy over {len(exact)} trials "
+                          "— pooled arm gate can mask this; inspect abstention / malformed",
+            })
+
     window = int(df["sliding_window"].iloc[0])
     checks.append({"gate": "window_is_exceeded", "scope": "design", **_window_verdict(df, window)})
 
