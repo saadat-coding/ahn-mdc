@@ -117,6 +117,42 @@ responses there were produced under the prior wording; the recurrent-path
 conclusion (the AHN kernel engages only past the window — `ahn_kernel_forward_calls`
 0 → 5, `num_cached_tokens` 0 → 1906) is token-count driven and stands unchanged.
 
+### 7b. Temporal question candidate order balanced · `IMPLEMENTED, NOT VALIDATED` (2026-09-03) · Saadat
+
+The forced-baseline diagnostic (`gated_deltanet`, 252 trials) found `dataset.temporal`
+always listed the gold (the earlier arriver) **first** in the question, so "pick the
+first-listed name" scored 100% with zero reasoning or memory — target-removed forced
+accuracy **100% (36/36 first-listed)**. Temporal measured nothing and is **excluded
+from evidentiary use** until the repair is validated.
+
+**Repair (commit `03e68f0`).** `temporal(i, swap_candidates=False)` toggles only the
+order the two candidates are listed in the question. `generate_items` drives
+`swap_candidates` from `(slot // 2) % 2` for temporal items — balanced 50/50 and an
+exact 2×2 balance with `distractor_density` (`slot % 2` for temporal), independent of
+the gold. Fact text, gold (`Person_i`), `answer_hint`, the scorer (already
+order-agnostic), and distractor generation are unchanged. `tests/test_dataset_temporal_order.py`.
+
+**Pending.** The 72-trial temporal validation run (`gated_deltanet`, 12 repaired
+temporal items × requested {128, 384, 768} × {present, removed} forced). PASS =
+present@128 ≥ 0.85 (construct intact) **and** removed accuracy ∈ [0.30, 0.70] at
+every level **and** removed first-listed-choice ∈ [0.30, 0.70] (shortcut killed, no
+residual position bias). Then present-vs-removed recurrent Δ places temporal in H1
+branch A or B alongside the four validated types.
+
+### 5a. Exact-memory acceptance gate reframe · `PROPOSED, AWAITING JUAN` · Saadat → Juan
+
+`patches/exact-memory-gate-reframe.patch` (not applied). Replaces the pooled
+`exact_memory_accuracy` band (`red_flag_at: 0.90` — a benchmark-hardness criterion)
+with a **per-fact-type retrievability minimum** (PASS ≥ 0.85 / WARN [0.70, 0.85) /
+FAIL < 0.70; no upper bound) plus a **`target_removed_validity`** check fed by the
+forced-baseline diagnostic (numerical / entity-attribute / multi-hop / contradictory
+= PASS; temporal = PENDING). Pooled exact-memory accuracy → `REPORT`, never gated.
+`RED_FLAG` retired from `report.blocking()`. Rationale: the forced-baseline diagnostic
+showed exact-memory ≈ 100% with target-removed ≈ 0 is the **ideal** control for a
+memory-degradation study; penalising a high, *valid* baseline is backwards, and
+pooling hid temporal's 25–50% in-window failure. Approval checklist in
+`patches/README.md`.
+
 ---
 
 ## P2 — Needed before submission, not before running
