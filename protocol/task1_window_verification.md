@@ -51,6 +51,14 @@ target ~2048 distractor tokens past the 256-token window; the AHN kernel process
 positions at prefill plus one per decode step. **The compression the whole experiment
 depends on is real and is driven by `config.sliding_window = 256`.**
 
+> **Prompt wording note (added 2026-09-03).** The two model responses quoted above
+> (`100000`; `I don't know`) were generated under the prior shared abstention clause
+> (`If the answer is not stated above, …`). That clause was reworded on 2026-09-03
+> (`open_decisions.md` #7 / #7a) after the staged pilot. This artifact is **not**
+> regenerated: the recurrent-path conclusion depends on token-count-driven signals
+> (`ahn_kernel_forward_calls` 0 → 5, `ahn_layer0_num_cached_tokens` 0 → 1906), not on
+> the generated text, and stands unchanged.
+
 ## Interpretation notes (audited 2026-09-03, no methodology change)
 
 ### 1. Why `num_cached_tokens` (1906) ≠ `expected_recurrent_positions` (1853) — a fixed 49-token offset

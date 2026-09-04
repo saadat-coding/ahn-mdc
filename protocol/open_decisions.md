@@ -65,13 +65,57 @@ confidence is on a different scale than H3 expects.
 | 4 | **ECE formula** from a top-venue paper. Guo et al. 2017 (ICML) is already cited in the research doc; confirm bin count and binning strategy against the PDF and freeze them. | H3 | Sumiya | `OPEN` |
 | 5 | **CWR threshold** — what confidence counts as *confidently* wrong. Same threshold everywhere. The pilot used 0.5 with no justification. | H3 | Sumiya | `OPEN` |
 | 6 | **Confidence definition.** Pilot used full-sequence token probability, which penalises long answers: pilot confidences span 1.8e-06 to 0.99. Decide between sequence probability and length-normalised, apply one everywhere. | H3 | Sumiya | `OPEN` |
-| 7 | **Answer matcher per fact type.** ~~Pilot scores `contradictory` at 0% and `temporal` at 90–100%.~~ Root cause was containment scoring + a constant-gold dataset bug. Fixed: constrained short-answer prompt + per-type deterministic canonicalised exact scorer (`evaluate.score_row` / `rescore`), raw generation preserved, `malformed` recorded separately. | H1 | Saadat | `DONE` → `evaluate.py`, `config/facts.yaml` |
+| 7 | **Answer matcher per fact type.** ~~Pilot scores `contradictory` at 0% and `temporal` at 90–100%.~~ Root cause was containment scoring + a constant-gold dataset bug. Fixed: constrained short-answer prompt + per-type deterministic canonicalised exact scorer (`evaluate.score_row` / `rescore`), raw generation preserved, `malformed` recorded separately. **Abstention clause reworded 2026-09-03** (see note below) — `not stated above` → `cannot be determined from the statements above`; scorer unchanged. | H1 | Saadat | `DONE` → `evaluate.py`, `config/facts.yaml`, `dataset.py` |
 | 8 | **Fact-type taxonomy frozen** — numerical, temporal, entity-attribute, multi-hop, contradictory (research doc, Table 2). | H1 | Saadat | `DONE` → `config/facts.yaml` |
 | 9 | **Random seeds.** How many, fixed across models and conditions. The pilot has 100 distinct `seed` values but one item each, so there is no replication and every clustered interval comes back empty. | all | Youssef | `BLOCKER` |
 | 10 | **Distractor density** defined quantitatively, not as low/high labels. | all | Youssef | `OPEN` |
 | 11 | **`importance` is currently a no-op.** The pilot tags facts high/low but never changes the text, so the variable cannot explain anything. Either manipulate it in the fact wording or drop it. | H1 | Youssef | `OPEN` |
 | 12 | **Architecture configs frozen** — Mamba2 / DeltaNet / GatedDeltaNet matched so architecture is the only difference. Juan approved the frozen **matched inference configuration**: `sliding_window = 256`, `sliding_window_type = fixed`, `ahn_position = prefix`, `num_attn_sinks = 0`. The AHN checkpoints ship training-time values (`sliding_window_type`/`ahn_position` = `random`; DeltaNet also ships stale `dy_sliding_window = 2048`, Mamba2/DeltaNet `dy_num_attn_sinks = 128`) — all read only under `if self.training` in `qwen2_ahn.py`, so inert at inference. `models._force_window` now normalises every loaded config to the frozen values and deletes the stale `dy_*` keys; `models.describe` exposes the three fields so `models.assert_matched` enforces them across arms (`tests/test_matched_config.py`). | H2 | Juan | `DONE` → `config/experiment.yaml`, `src/ahnexp/models.py`, `patches/matched-inference-config.patch` |
 | 13 | **Length-matched controls.** `tokens_after_target` must not be confounded with total prompt length or with the target landing at the start. The pilot puts the target first in every sequence. | all | Saadat | `OPEN` |
+
+### 7a. Shared abstention clause reworded · `DONE` (2026-09-03) · Saadat
+
+**What changed.** The one line in `dataset._PROMPT` shared by all five fact types:
+
+> ~~If the answer is not stated above, reply with exactly: I don't know~~
+> If the answer cannot be determined from the statements above, reply with exactly: I don't know
+
+Nothing else — temporal fact wording, temporal question, every `answer_hint`, the
+scorer / canonicalisation, answer spaces, `window = 256`, the matched AHN config,
+the pressure grids, and the H1/H2/H3 analyses and confidence computation are
+untouched. The literal abstention token string (`I don't know`) is unchanged, so
+`evaluate.score_row` recognises abstentions exactly as before (`tests/test_abstention_wording.py`).
+
+**Why.** Staged Pilot Pass 1 (100 trials, `deltanet` + `gated_deltanet`, seed 0)
+replicated the mini-grid's n=1 temporal weakness at scale:
+
+| fact type | exact-memory accuracy | exact-memory abstention |
+| --- | --- | --- |
+| contradictory / entity-attribute / multi-hop / numerical | 1.00 | 0.00 |
+| **temporal** | **0.25** | **0.75** |
+
+temporal is the only type whose gold is *entailed* (`Person_1 arrived before
+Person_2` ⇒ Person_1 arrived first), not a verbatim span. The old clause was read
+as "answer only a span that appears above", so the model emitted the abstention
+string on a trivially-entailed answer even with the fact fully in-window and zero
+distractors. `malformed = 0` and temporal exact wrong = 0 across the pilot — the
+failures were clean `"I don't know"` outputs, not confusion. `cannot be determined
+from` licenses a one-step entailment while still permitting abstention once the
+fact is compressed away. `report.gate_report` gained a WARN-only
+`exact_memory_by_fact_type` check (`a197779`) that flagged this correctly.
+
+**Validation-run status.** The mini-grid (20 trials, `protocol/diag_ahn_window_PASS.json`
+context) and staged Pilot Pass 1 (`outputs/results_pilot.parquet`, pre-repair) are
+**pre-repair pipeline-validation runs only — not evidence for H1/H2/H3 and not
+citable.** The re-pilot under the new wording supersedes them. `require_complete_grid`
+comparability means every fact type and every arm is re-run together; no partial
+reuse of pre-repair non-temporal data.
+
+**Task #1 artifact.** `protocol/task1_window_verification.md` /
+`protocol/diag_ahn_window_PASS.json` are **not** regenerated. The two quoted model
+responses there were produced under the prior wording; the recurrent-path
+conclusion (the AHN kernel engages only past the window — `ahn_kernel_forward_calls`
+0 → 5, `num_cached_tokens` 0 → 1906) is token-count driven and stands unchanged.
 
 ---
 

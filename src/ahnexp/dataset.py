@@ -261,6 +261,14 @@ def assert_no_collision(item: Item) -> None:
 # Strengthened from "Answer with only the short answer." The per-type {answer_hint}
 # comes from config/facts.yaml; the "I don't know" line is the exact abstention the
 # scorer recognises. No option set is revealed (open_decisions.md #7).
+#
+# The abstention clause reads "cannot be determined from the statements above", not
+# "not stated above": the staged pilot showed the earlier wording was read as
+# "only answer a verbatim span", which uniquely broke temporal (its gold is
+# entailed by "A arrived before B", not stated) — 25% exact accuracy / 75%
+# abstention while the four verbatim types were 100%. "determined from" licenses a
+# one-step entailment while still permitting abstention when the fact was
+# compressed away. Applied identically to all five types (open_decisions.md #7).
 _PROMPT = """You are given a set of factual statements.
 
 {context}
@@ -269,7 +277,7 @@ Question:
 {question}
 
 {answer_hint} Give only that value, with no other words.
-If the answer is not stated above, reply with exactly: I don't know
+If the answer cannot be determined from the statements above, reply with exactly: I don't know
 """
 
 
