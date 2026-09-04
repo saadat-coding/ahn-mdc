@@ -117,27 +117,38 @@ responses there were produced under the prior wording; the recurrent-path
 conclusion (the AHN kernel engages only past the window — `ahn_kernel_forward_calls`
 0 → 5, `num_cached_tokens` 0 → 1906) is token-count driven and stands unchanged.
 
-### 7b. Temporal question candidate order balanced · `IMPLEMENTED, NOT VALIDATED` (2026-09-03) · Saadat
+### 7b. Temporal question order + earlier-identity balanced · `DONE` (2026-09-04) · Saadat
 
-The forced-baseline diagnostic (`gated_deltanet`, 252 trials) found `dataset.temporal`
-always listed the gold (the earlier arriver) **first** in the question, so "pick the
-first-listed name" scored 100% with zero reasoning or memory — target-removed forced
-accuracy **100% (36/36 first-listed)**. Temporal measured nothing and is **excluded
-from evidentiary use** until the repair is validated.
+Temporal was invalid: the fact was always `Person_i arrived before Person_{i+1}` with
+gold `Person_i`, so "pick the lower-numbered / first-listed name" scored ~100% with
+zero reasoning or memory (order-only repair `03e68f0` fixed the position half but left
+the gold the **lower-numbered** candidate on 12/12 items; target-removed forced
+accuracy 0.83–0.92). Temporal measured nothing.
 
-**Repair (commit `03e68f0`).** `temporal(i, swap_candidates=False)` toggles only the
-order the two candidates are listed in the question. `generate_items` drives
-`swap_candidates` from `(slot // 2) % 2` for temporal items — balanced 50/50 and an
-exact 2×2 balance with `distractor_density` (`slot % 2` for temporal), independent of
-the gold. Fact text, gold (`Person_i`), `answer_hint`, the scorer (already
-order-agnostic), and distractor generation are unchanged. `tests/test_dataset_temporal_order.py`.
+**Repair (commit `26613ba`).** `temporal(i, swap_candidates, earlier_is_higher)`:
+`earlier_is_higher` sets which identity arrived first / is the gold, `swap_candidates`
+its question position. `_temporal_factor_plan` assigns both from a **density-stratified,
+seed-shuffled balanced** plan — exact per-density 2×2 when a stratum count divides by
+4, full 2×2×2 when `n_temporal` divides by 8, each marginal exact when a stratum count
+is even (the pilot's 100 temporal and this run's 16 both qualify); not a periodic
+function of the slot or Person numbers. Temporal-typed distractors alternate relation
+direction via a local counter — no extra shared-RNG draw; the shared distractor RNG
+trajectory and every non-temporal distractor are byte-identical (regression test).
+Construct, gold, `answer_hint`, and the scorer are unchanged. 139-test suite green.
 
-**Pending.** The 72-trial temporal validation run (`gated_deltanet`, 12 repaired
-temporal items × requested {128, 384, 768} × {present, removed} forced). PASS =
-present@128 ≥ 0.85 (construct intact) **and** removed accuracy ∈ [0.30, 0.70] at
-every level **and** removed first-listed-choice ∈ [0.30, 0.70] (shortcut killed, no
-residual position bias). Then present-vs-removed recurrent Δ places temporal in H1
-branch A or B alongside the four validated types.
+**Validated 2026-09-04** — `gated_deltanet`, 96-trial forced-answer run,
+`protocol/temporal_repair_validation.md`. Structural: 8/8 direction, 8/8 position,
+8/8 density, exactly 2 per 2×2×2 cell, relational leakage 0. Result: present@128 =
+15/16 (93.75%); target-removed 43.75 / 50 / 43.75%, pooled 22/48 = 45.83%
+(Wilson95 [0.326, 0.597], compatible with 0.5); paired recurrent Δ = 0.00,
+bootstrap95 [0.00, 0.00]. **Benchmark valid** — no nuisance feature predicts the gold
+above chance and there is no target leakage. **Documented response bias** — absent a
+determinative fact the model prefers the lower-numbered (83.3%) / first-listed
+(66.7%) candidate; counterbalanced against the gold, so it nets to chance and does
+not bias the benchmark (report it, do not remove it). **Temporal is H1 branch A on
+`gated_deltanet`**: the compressed target confers no measurable retrieval advantage
+over target-removed at the sampled recurrent pressures. Cross-arm confirmation folds
+into Pilot Pass 2.
 
 ### 5a. Exact-memory acceptance gate reframe · `PROPOSED, AWAITING JUAN` · Saadat → Juan
 

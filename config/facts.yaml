@@ -24,20 +24,25 @@ types:
     answer_hint: "Reply with only the name of the person who arrived first."
     h1_prediction: slower — binary orderings are guessable at 50% by chance
     caveat: >-
-      Two-way question, chance 0.5. Two nuisance factors — which identity arrived
-      first / is the gold (higher- vs lower-numbered), and the gold's question
-      position (first vs second) — are assigned from a density-stratified,
-      seed-shuffled balanced plan (dataset._temporal_factor_plan). Earlier
-      direction determines the gold's identity, candidate order its position; the
-      assignment is seed-shuffled and balanced within each density level so that
-      the simple systematic Person-ID, numeric-order, candidate-position, and
-      density shortcuts identified by validation are removed. Temporal distractor
-      facts alternate relation direction (~50/50) so higher-first targets are not
-      distributionally unusual; the shared distractor RNG stream and every
-      non-temporal distractor are unchanged. The order-only repair (03e68f0)
-      failed validation: gold was the lower-numbered candidate on 12/12 items.
-      Chance-correct before comparing this category against the others, and
-      re-validate the repaired form before evidentiary use.
+      Two-alternative forced choice, theoretical chance 0.5. Two nuisance factors
+      — which identity arrived first / is the gold (higher- vs lower-numbered),
+      and the gold's question position (first vs second) — are assigned from a
+      density-stratified, seed-shuffled balanced plan
+      (dataset._temporal_factor_plan): earlier direction determines the gold's
+      identity, candidate order its position, and the assignment is balanced
+      within each density level so the systematic Person-ID, numeric-order,
+      candidate-position and density shortcuts identified by validation are
+      removed. Temporal-typed distractors alternate relation direction (~50/50);
+      the shared distractor RNG and every non-temporal distractor are unchanged.
+      VALIDATED 2026-09-04 on gated_deltanet (96-trial forced-answer run,
+      protocol/temporal_repair_validation.md): present@128 = 15/16;
+      target-removed pooled 22/48 = 0.458 (Wilson95 [0.326, 0.597], compatible
+      with 0.5); paired recurrent delta = 0.00 [0, 0] -> H1 branch A. DOCUMENTED
+      RESPONSE BIAS (report, do not engineer away): absent a determinative fact
+      this model prefers the lower-numbered (~83%) / first-listed (~67%)
+      candidate; it is counterbalanced against the gold, nets to chance, and does
+      not bias the benchmark. H1 cross-type comparison uses an empirical
+      target-removed null, not a 0.2 free-response chance — see open_decisions #17.
 
   entity-attribute:
     example: "Person_0's favorite color is blue."
