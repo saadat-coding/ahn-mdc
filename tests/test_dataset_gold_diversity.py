@@ -137,14 +137,20 @@ class TestGoldDiversity(unittest.TestCase):
             self.assertTrue(it.item_id.startswith(it.fact.fact_type))
             self.assertRegex(it.item_id, r"_\d{4}$")
 
-    def test_numerical_and_temporal_wording_unchanged(self):
-        # The fix must not touch the open-ended generators.
+    def test_numerical_and_temporal_default_wording_unchanged(self):
+        # numerical is untouched. temporal's DEFAULT (swap_candidates=False) is the
+        # pre-repair wording; the question-order repair only takes effect via
+        # generate_items — see tests/test_dataset_temporal_order.py.
         self.assertEqual(dataset.numerical(0), dataset.Fact(
             "numerical", "Person_0's employee ID is 100000.",
             "What is Person_0's employee ID?", "100000"))
         self.assertEqual(dataset.temporal(1), dataset.Fact(
             "temporal", "Person_1 arrived before Person_2.",
             "Who arrived first, Person_1 or Person_2?", "Person_1"))
+        swapped = dataset.temporal(1, swap_candidates=True)
+        self.assertEqual(swapped.question, "Who arrived first, Person_2 or Person_1?")
+        self.assertEqual(swapped.answer, "Person_1")          # gold unchanged
+        self.assertEqual(swapped.text, "Person_1 arrived before Person_2.")  # fact unchanged
 
 
 class _StubTokenizer:

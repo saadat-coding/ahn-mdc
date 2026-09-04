@@ -24,9 +24,13 @@ types:
     answer_hint: "Reply with only the name of the person who arrived first."
     h1_prediction: slower — binary orderings are guessable at 50% by chance
     caveat: >-
-      Two-way question, so chance is 0.5. Correct for it before comparing this
-      category against the others, or it will look artificially robust. The pilot
-      shows 90-100% here under pressures where every other type collapses.
+      Two-way question, chance 0.5. Candidate order in the question is balanced
+      independently of the gold and of distractor_density
+      (dataset.temporal `swap_candidates`, driven from generate_items). The earlier
+      gold-always-first wording was solvable with zero reasoning or memory: the
+      forced-baseline diagnostic scored target-removed forced accuracy at 100%
+      (36/36 first-listed). Chance-correct before comparing this category against
+      the others, and re-validate the repaired form before evidentiary use.
 
   entity-attribute:
     example: "Person_0's favorite color is blue."

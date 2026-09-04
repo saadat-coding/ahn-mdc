@@ -70,10 +70,17 @@ def numerical(i: int) -> Fact:
                 f"What is {person}'s employee ID?", value)
 
 
-def temporal(i: int) -> Fact:
-    a, b = f"Person_{i}", f"Person_{i + 1}"
-    return Fact("temporal", f"{a} arrived before {b}.",
-                f"Who arrived first, {a} or {b}?", a)
+def temporal(i: int, swap_candidates: bool = False) -> Fact:
+    early, late = f"Person_{i}", f"Person_{i + 1}"
+    # The fact keeps "<earlier> arrived before <later>" and the gold stays the
+    # earlier person (arrived first). Only the ORDER the two names are listed in
+    # the QUESTION is toggled — independently of the gold — so "the first-listed
+    # candidate" stops being a valid shortcut. The forced-baseline diagnostic
+    # found the old gold-always-first wording was solvable with zero reasoning or
+    # memory: target-removed forced accuracy 100%, 36/36 first-listed.
+    first_q, second_q = (late, early) if swap_candidates else (early, late)
+    return Fact("temporal", f"{early} arrived before {late}.",
+                f"Who arrived first, {first_q} or {second_q}?", early)
 
 
 def entity_attribute(i: int, slot: int | None = None) -> Fact:
@@ -131,11 +138,16 @@ def generate_items(n_items: int, seed: int = 0, pool_size: int = 4000) -> list[I
         density = densities[(index // len(types)) % len(densities)]
         slot = slot_counter.get(fact_type, 0)
         slot_counter[fact_type] = slot + 1
-        target = (
-            GENERATORS[fact_type](index, slot)
-            if fact_type in _CATEGORICAL_TYPES
-            else GENERATORS[fact_type](index)
-        )
+        if fact_type in _CATEGORICAL_TYPES:
+            target = GENERATORS[fact_type](index, slot)
+        elif fact_type == "temporal":
+            # Question candidate order is balanced independently of the gold (gold
+            # is always Person_{index}) and of distractor_density (which is
+            # slot % 2 for temporal). (slot // 2) % 2 gives an exact 2x2 balance
+            # with density; see tests/test_dataset_temporal_order.py.
+            target = GENERATORS["temporal"](index, swap_candidates=bool((slot // 2) % 2))
+        else:
+            target = GENERATORS[fact_type](index)
         item = Item(
             item_id=f"{fact_type}_{index:04d}",
             fact=target,
