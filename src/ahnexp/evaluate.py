@@ -239,8 +239,8 @@ def run_grid(
                     record = {
                         **{k: trajectory[k] for k in
                            ("item_id", "fact_type", "distractor_density", "target_position",
-                            "tokens_after_target", "model_tokens_after_target",
-                            "context_tokens", "seed")},
+                            "tokens_after_target", "requested_tokens_after_target",
+                            "model_tokens_after_target", "context_tokens", "seed")},
                         "architecture": name,
                         "sliding_window": window,
                         **run_trial(model, tokenizer, trajectory),

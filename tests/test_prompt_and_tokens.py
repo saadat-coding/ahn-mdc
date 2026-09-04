@@ -181,9 +181,50 @@ class TestGenerationStopStringApi(unittest.TestCase):
 class TestSchemaColumns(unittest.TestCase):
     def test_new_columns_registered(self):
         names = {c.name for c in schema.COLUMNS}
-        for expected in ("malformed", "answer_canonical", "n_new_tokens", "model_tokens_after_target"):
+        for expected in ("malformed", "answer_canonical", "n_new_tokens",
+                         "model_tokens_after_target", "requested_tokens_after_target"):
             self.assertIn(expected, names)
         self.assertIn("prediction", names)
+
+
+class TestRequestedTokensProvenance(unittest.TestCase):
+    """`requested_tokens_after_target` — the nominal grid level, carried natively
+    from `build_trajectory` through `run_grid` (provenance only; no behaviour change)."""
+
+    def setUp(self):
+        self.items = dataset.generate_items(10, seed=0, pool_size=400)
+
+    def test_build_trajectory_reports_the_requested_level_verbatim(self):
+        for pressure in (0, 128, 256, 512, 768):
+            tj = dataset.build_trajectory(self.items[1], _TemplatedTokenizer(),
+                                          tokens_after_target=pressure, seed=0)
+            self.assertEqual(tj["requested_tokens_after_target"], pressure)
+            # the realised count overshoots (whole facts) but never undershoots
+            self.assertGreaterEqual(tj["tokens_after_target"], 0)
+            if pressure:
+                self.assertGreaterEqual(tj["tokens_after_target"], pressure)
+
+    def test_run_grid_copies_the_key_into_every_record(self):
+        import inspect
+        from ahnexp import evaluate
+        src = inspect.getsource(evaluate.run_grid)
+        # the key must be inside the trajectory-copy tuple, not merely mentioned
+        copy_block = src.split("record = {", 1)[1].split("}", 1)[0]
+        self.assertIn('"requested_tokens_after_target"', copy_block)
+
+    def test_empty_frame_carries_the_column(self):
+        self.assertIn("requested_tokens_after_target", schema.empty_frame().columns)
+
+    def test_backwards_compatible_frame_without_the_column_still_validates(self):
+        import pandas as pd
+        legacy = pd.DataFrame([dict(
+            item_id="x", architecture="deltanet", seed=0, fact_type="numerical",
+            tokens_after_target=300, model_tokens_after_target=340, sliding_window=256,
+            correct=1, abstained=0, confidence=0.9,
+        )])
+        out = schema.validate(schema.derive_memory_condition(legacy), needs=("core", "h1", "h3"))
+        self.assertNotIn("requested_tokens_after_target", out.columns)
+        self.assertEqual(out["memory_condition"].iloc[0], "recurrent_memory")
 
 
 if __name__ == "__main__":

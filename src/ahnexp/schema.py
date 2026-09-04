@@ -28,7 +28,14 @@ IDENTITY = (
 DESIGN = (
     Column("tokens_after_target", "int64",
            "Distractor tokens after the target. The H1/H2 independent variable — "
-           "not affected by prompt wording or the chat template"),
+           "not affected by prompt wording or the chat template. This is the "
+           "*realised* count and overshoots the requested grid level because "
+           "`dataset._fill` adds whole distractor facts"),
+    Column("requested_tokens_after_target", "int64",
+           "Nominal pressure grid level requested for this trial (the "
+           "`build_trajectory` input). Optional: frames built before this column "
+           "existed (the pilot CSV, older parquets) omit it and analyses key on "
+           "`tokens_after_target` / `model_tokens_after_target` as before"),
     Column("model_tokens_after_target", "int64",
            "Every token after the target in the tokenised model input (distractors + "
            "question/instruction + chat-template suffix); the exact/recurrent boundary "
