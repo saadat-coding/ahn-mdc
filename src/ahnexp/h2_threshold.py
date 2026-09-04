@@ -235,6 +235,54 @@ def _slopes(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def knees(df: pd.DataFrame, by: str | None = None) -> pd.DataFrame:
+    """Exploratory descriptive transition location (open_decisions #18 / #3).
+
+    Per arm (and, with `by="fact_type"`, pooled per fact type across arms): the
+    isotonic-fit 0.5 crossing of strict accuracy vs `model_tokens_after_target`, the
+    same for abstention rate (separately — never collapsed), and the 0.9->0.1 strict
+    drop width as a descriptive pilot quantity. Aggregated at the balanced requested
+    levels; x is the realised model-tat mean within each level.
+
+    NOT an H2 result. K is a per-run empirical output, not an architectural constant.
+    """
+    schema.validate(df, needs=("core", "h2"))
+    design_key = schema.pressure_design_key(df)
+    coord = schema.pressure_coordinate(df)
+    group_cols = ["architecture"] if by is None else [by]
+
+    rows = []
+    for keys, block in df.groupby(group_cols):
+        cell = block.groupby(design_key).agg(
+            model_tat=(coord, "mean"),
+            strict_accuracy=("correct", "mean"),
+            abstention=("abstained", "mean") if "abstained" in block else ("correct", "mean"),
+            n=("correct", "size"),
+        ).reset_index().sort_values("model_tat")
+
+        if len(cell) < 3:
+            row = {"n_levels": int(len(cell)), "k_strict_acc": np.nan,
+                   "k_abstention": np.nan, "strict_drop_width_90_10": np.nan}
+        else:
+            x = cell["model_tat"].to_numpy(float)
+            w = cell["n"].to_numpy(float)
+            acc_fit = stats.isotonic_regression(cell["strict_accuracy"], w, increasing=False)
+            abst_fit = stats.isotonic_regression(cell["abstention"], w, increasing=True)
+            row = {
+                "n_levels": int(len(cell)),
+                "k_strict_acc": stats.crossing_x(x, acc_fit, 0.5),
+                "k_abstention": stats.crossing_x(x, abst_fit, 0.5),
+                "strict_drop_width_90_10": stats.crossing_x(x, acc_fit, 0.1)
+                - stats.crossing_x(x, acc_fit, 0.9),
+                "acc_at_min_pressure": float(cell["strict_accuracy"].iloc[0]),
+                "acc_at_max_pressure": float(cell["strict_accuracy"].iloc[-1]),
+            }
+        label = keys if isinstance(keys, str) else keys[0]
+        rows.append({group_cols[0]: label, **row})
+
+    return pd.DataFrame(rows).reset_index(drop=True)
+
+
 def architecture_comparisons(df: pd.DataFrame) -> pd.DataFrame:
     """Paired arm-vs-arm gaps under recurrent memory.
 

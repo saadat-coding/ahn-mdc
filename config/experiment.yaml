@@ -97,15 +97,56 @@ pressure:
     recurrent_memory: tokens_after_target >= sliding_window
 
 # ---------------------------------------------------------------------------
-# H2 threshold T — blocked on a citation
+# Pilot Pass 2 — model-tat-targeted grid (frozen 2026-09-04)
 # ---------------------------------------------------------------------------
+# Unlike `pressure.grid` (window multiples), this grid is specified directly in
+# `model_tokens_after_target` — the canonical scientific pressure coordinate. The
+# runner converts each target to a per-fact-type `requested_tokens_after_target`
+# using config/pilot_pass2_calibration.json (built by scripts/pilot_pass2_dryrun.py,
+# no model). See protocol/pilot_pass2.md.
+pilot_pass2:
+  status: FROZEN
+  coordinate: model_tokens_after_target
+  # Anchored on the gated_deltanet near-window diagnostic:
+  #   model_tat ~166 -> 1.00 | ~200 -> .95 | ~231 -> .65 | ~242 -> .50
+  #             ~261 -> .10  | ~298 -> 0   | ~354+ -> 0
+  target_model_tat: [170, 200, 225, 240, 255, 270, 290, 330, 430, 640, 1024]
+  bands:
+    exact_anchor:    [170, 200]        # target fully inside exact attention
+    transition:      [225, 240, 255, 270, 290]   # dense around K ~242, floor ~300
+    early_recurrent: [330, 430]
+    deep_recurrent:  [640, 1024]
+  calibration_file: config/pilot_pass2_calibration.json
+  calibration_tolerance_transition: 15   # model tokens, |realised - intended| in the 200-300 band
+  calibration_tolerance_other: 30
+  window_reference: 256                  # W — drawn on figures, never a predicted break
+  arms: [transformer, mamba2, deltanet, gated_deltanet]
+
+# ---------------------------------------------------------------------------
+# H2 threshold T — DEPRECATED (2026-09-04)
+# ---------------------------------------------------------------------------
+# The `50 facts x 15.37 = 768` derivation is retired. The "50" was attributed to
+# Khandelwal et al. 2018 (arXiv:1805.04623), which actually reports ~50 *tokens* of
+# LSTM order sensitivity, not a 50-fact AHN recurrent-memory saturation threshold.
+# See protocol/h2_threshold_decision_2026-09-04.md and protocol/h2_threshold.md.
+#
+# H2 no longer depends on this. Retained here only so the old arithmetic stays
+# reproducible and so `compression_threshold(strict=False)` keeps returning a value
+# for the legacy `mini` pressure-grid backstop. `compression_threshold(strict=True)`
+# still raises (status != LOCKED) — the 768 number never reaches an H2 table.
 threshold:
-  status: VERIFIED     # LOCKED unblocks the H2 numbers
-  facts: 50
-  tokens: null                     # derived from facts x tokens_per_fact
+  status: DEPRECATED   # was VERIFIED; never LOCKED
+  deprecated:
+    on: 2026-09-04
+    reason: >-
+      50-fact conversion unsupported by the cited reference; H2 re-operationalised
+      without an external threshold (team-owned methodology decision).
+    record: protocol/h2_threshold_decision_2026-09-04.md
+  facts: 50                          # retained for provenance only — not a validated threshold
+  tokens: null                       # derived from facts x tokens_per_fact
   source: null
   decision_record: protocol/h2_threshold.md
-  min_windows: 1.5                 # T must clear the window or nothing is compressed
+  min_windows: 1.5                   # legacy sanity check only
 
   tokens_per_fact:
     estimate: 16
@@ -142,6 +183,15 @@ run_modes:
     grid: pilot_grid
     hardware: gpu                  # Colab T4/L4 or local CUDA; not A40 (2-day cap)
     suffix: _pilot
+  pilot_pass2:
+    purpose: >-
+      four-arm plumbing + localization over the repaired benchmark and the
+      model-tat-targeted grid — never cited as inferential evidence
+    n_items: 40                   # 8 per fact type; n_temporal = 8 -> exact 2x2x2 factorial
+    seeds: [0]
+    grid: null                    # model-tat targeted; see pressure grids -> pilot_pass2.target_model_tat
+    hardware: gpu                  # Colab L4
+    suffix: _pass2
   full:
     n_items: 500                   # sufficient for interpreting ECE
     seeds: [0, 1, 2, 3, 4]
@@ -188,3 +238,13 @@ outputs:
   figures: outputs/figures
   # NAACL industry track: 6 pages, 10 exhibits (6 tables + 4 graphs).
   venue_budget: {tables: 6, graphs: 4}
+
+  # Pilot Pass 2 — immutable raw + derived artifacts (protocol/pilot_pass2.md)
+  pass2_raw: outputs/pilot_pass2.parquet
+  pass2_summary: outputs/pilot_pass2_summary.json
+  pass2_items: outputs/pilot_pass2_items.json
+  pass2_h1: outputs/pilot_pass2_h1
+  pass2_h2: outputs/pilot_pass2_h2
+  pass2_h3: outputs/pilot_pass2_h3
+  pass2_knees: outputs/pilot_pass2_knees
+  pass2_dryrun: outputs/pilot_pass2_dryrun.json

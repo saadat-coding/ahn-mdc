@@ -154,6 +154,65 @@ def logit(p) -> np.ndarray:
     return np.log(np.clip(p, _EPS, 1 - _EPS) / (1 - np.clip(p, _EPS, 1 - _EPS)))
 
 
+def isotonic_regression(y, weights=None, *, increasing: bool = True) -> np.ndarray:
+    """Weighted pool-adjacent-violators fit (no scipy/sklearn in the env).
+
+    Returns the monotone (non-decreasing if `increasing`, else non-increasing)
+    sequence closest to `y` in weighted least squares. `y` is assumed already
+    ordered by the x-axis.
+    """
+    y = np.asarray(y, dtype=float)
+    if y.size == 0:
+        return y.copy()
+    sign = 1.0 if increasing else -1.0
+    v = sign * y
+    w = np.ones_like(v) if weights is None else np.asarray(weights, dtype=float)
+
+    values = list(v)
+    wts = list(w)
+    counts = [1] * len(values)
+    i = 0
+    while i < len(values) - 1:
+        if values[i] <= values[i + 1] + 1e-12:
+            i += 1
+            continue
+        # merge i and i+1
+        tot_w = wts[i] + wts[i + 1]
+        values[i] = (wts[i] * values[i] + wts[i + 1] * values[i + 1]) / tot_w
+        wts[i] = tot_w
+        counts[i] += counts[i + 1]
+        del values[i + 1], wts[i + 1], counts[i + 1]
+        if i > 0:
+            i -= 1
+
+    out = np.empty_like(v)
+    pos = 0
+    for val, cnt in zip(values, counts):
+        out[pos:pos + cnt] = val
+        pos += cnt
+    return sign * out
+
+
+def crossing_x(x, y_fit, level: float) -> float:
+    """First x where a monotone fit reaches `level`, by linear interpolation.
+
+    Returns NaN if the fit never reaches `level` within the sampled range.
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y_fit, dtype=float)
+    if y.size < 2:
+        return float("nan")
+    descending = y[0] >= y[-1]
+    for i in range(len(x) - 1):
+        a, b = y[i], y[i + 1]
+        hit = (a >= level >= b) if descending else (a <= level <= b)
+        if hit:
+            if b == a:
+                return float(x[i])
+            return float(x[i] + (level - a) / (b - a) * (x[i + 1] - x[i]))
+    return float("nan")
+
+
 def check_cell_sizes(df: pd.DataFrame, by: list[str] | None = None) -> pd.DataFrame:
     """Cells too thin to plot, so underpowered points do not reach a figure."""
     by = by or ["architecture", schema.pressure_design_key(df)]

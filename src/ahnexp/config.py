@@ -110,6 +110,24 @@ def run_mode(name: str = "pilot") -> dict[str, Any]:
     return experiment()["run_modes"][name]
 
 
+def pilot_pass2() -> dict[str, Any]:
+    """Frozen Pilot Pass 2 design block (model-tat-targeted grid)."""
+    return experiment()["pilot_pass2"]
+
+
+def load_pass2_calibration() -> dict[str, Any]:
+    """Per-fact-type requested->model-tat calibration built by the dry run."""
+    import json
+
+    path = project_root() / pilot_pass2()["calibration_file"]
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path} not found. Run scripts/pilot_pass2_dryrun.py first "
+            "(no model; needs the Qwen2.5 tokenizer)."
+        )
+    return json.loads(path.read_text())
+
+
 def output_path(key: str, mode: str = "pilot") -> Path:
     """Resolve `outputs.raw`, substituting the run-mode suffix."""
     template = experiment()["outputs"][key]
@@ -141,19 +159,24 @@ def tokens_per_fact() -> float:
 
 
 def compression_threshold(strict: bool = True) -> int:
-    """The H2 threshold T, in model tokens.
+    """The deprecated 50-fact / 768-token reference, in model tokens.
 
-    Raises while the citation is unresolved. This is the mentor's constraint
-    enforced in code: no self-defined threshold reaches a table. `strict=False` is
-    for resolving the pressure grid, which needs T's location before the source is
-    recorded.
+    DEPRECATED 2026-09-04: the `50 facts x 15.37` derivation is unsupported (the
+    cited Khandelwal et al. 2018 reports ~50 *tokens* of LSTM order sensitivity, not
+    a 50-fact AHN saturation threshold). H2 no longer depends on it — see
+    `protocol/h2_threshold_decision_2026-09-04.md`.
+
+    `strict=True` still raises (status is never LOCKED): the 768 number must not
+    reach an H2 table. `strict=False` still returns the derived value, used only as
+    the legacy `mini` pressure-grid backstop, never as an H2 reference line.
     """
     threshold = experiment()["threshold"]
     if strict and threshold.get("status") != "LOCKED":
         raise ValueError(
-            "H2 threshold T is not locked. Complete the decision record in "
-            f"{threshold['decision_record']}, then set status: LOCKED in "
-            "config/experiment.yaml. Do not invent a value."
+            "The H2 threshold T (50-fact / 768-token derivation) is DEPRECATED and "
+            f"unsupported — see {threshold['decision_record']} and "
+            "protocol/h2_threshold_decision_2026-09-04.md. H2 is operationalised "
+            "without it; do not lock or cite this value."
         )
 
     tokens = threshold.get("tokens")

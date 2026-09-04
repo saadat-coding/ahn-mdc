@@ -148,7 +148,7 @@ def plot_curves(curve: pd.DataFrame, group_col: str, path: Path | str, ylabel: s
         if window:
             at = config.compression_threshold(strict=False) / window
             ax.axvline(at, linestyle="--", linewidth=1.2, color="crimson")
-            ax.text(at, 1.02, "  T (published)", fontsize=8, color="crimson")
+            ax.text(at, 1.02, "  768-tok ref (DEPRECATED)", fontsize=8, color="crimson")
 
     ax.set_xscale("symlog", linthresh=0.25)
     ax.set_xlim(left=0)

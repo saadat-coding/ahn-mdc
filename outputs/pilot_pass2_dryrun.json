@@ -1,0 +1,56 @@
+{
+  "n_items": 40,
+  "targets": [
+    170,
+    200,
+    225,
+    240,
+    255,
+    270,
+    290,
+    330,
+    430,
+    640,
+    1024
+  ],
+  "seed": 0,
+  "per_type_mean_abs_error": {
+    "contradictory": 7.81,
+    "entity-attribute": 6.64,
+    "multi-hop": 7.89,
+    "numerical": 7.19,
+    "temporal": 7.48
+  },
+  "per_type_max_abs_error": {
+    "contradictory": 19,
+    "entity-attribute": 27,
+    "multi-hop": 26,
+    "numerical": 22,
+    "temporal": 20
+  },
+  "targets_out_of_tolerance": [],
+  "transition_band_ok": true,
+  "trajectory_nesting_ok": true,
+  "non_nested_items": [],
+  "bands_covered": {
+    "exact_anchor": [
+      170,
+      200
+    ],
+    "transition": [
+      225,
+      240,
+      255,
+      270,
+      290
+    ],
+    "early_recurrent": [
+      330,
+      430
+    ],
+    "deep_recurrent": [
+      640,
+      1024
+    ]
+  }
+}

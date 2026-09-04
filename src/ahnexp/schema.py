@@ -47,6 +47,10 @@ DESIGN = (
            "a point; with `model_tokens_after_target`, `n_new_tokens` and "
            "`sliding_window` this locates the span relative to the compression "
            "boundary. Optional: absent from frames built before it existed"),
+    Column("intended_model_tokens_after_target", "int64",
+           "Pilot Pass 2 / model-tat-targeted grids only: the "
+           "`model_tokens_after_target` level this trajectory was calibrated to hit. "
+           "Absent for window-multiple grids (mini / pilot / full)"),
     Column("sliding_window", "int64", "Window length in force, for normalisation"),
     Column("memory_condition", "string", "exact_memory | recurrent_memory"),
     Column("fact_type", "string", "Category from config/facts.yaml"),

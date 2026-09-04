@@ -182,6 +182,25 @@ def _confidence(log_probs, np) -> float:
 # Grid runner
 # ---------------------------------------------------------------------------
 
+def _trajectory_schedule(
+    item: dataset.Item,
+    window: int,
+    mode: str,
+    pressure_plan: dict[str, dict[int, int]] | None,
+) -> list[tuple[int, int | None]]:
+    """`(requested_tokens_after_target, intended_model_tat | None)` for one item.
+
+    Without a plan: the window-multiple grid, `intended` is None. With a plan: the
+    per-fact-type calibrated requested values for this item's fact type.
+    """
+    if pressure_plan is None:
+        return [(level, None) for level in pressure_levels(window, mode)]
+    per_type = pressure_plan.get(item.fact.fact_type)
+    if not per_type:
+        raise KeyError(f"pressure_plan has no entry for fact_type {item.fact.fact_type!r}")
+    return [(int(per_type[target]), int(target)) for target in sorted(per_type)]
+
+
 def pressure_levels(sliding_window: int, mode: str = "pilot") -> list[int]:
     """Grid in tokens, from window multiples, with T inserted as its own point."""
     pressure = config.experiment()["pressure"]
@@ -201,17 +220,27 @@ def run_grid(
     mode: str = "pilot",
     arms: list[str] | None = None,
     length_matched: bool = False,
+    pressure_plan: dict[str, dict[int, int]] | None = None,
 ) -> pd.DataFrame:
     """Replay the same items across every arm, at every pressure level.
 
     Arms load one at a time and are released before the next: three merged 3B
     checkpoints do not co-exist on a typical single GPU (Colab or laptop).
+
+    `pressure_plan` (Pilot Pass 2): `{fact_type: {intended_model_tat: requested_tokens}}`.
+    When given it replaces the window-multiple grid — each trajectory is built with
+    the per-fact-type `requested_tokens` and the record carries
+    `intended_model_tokens_after_target` (the model-tat level it was calibrated to
+    hit). Incompatible with `length_matched`.
     """
     items = list(items)
     arms = arms or models.list_arms()
     seeds = config.run_mode(mode)["seeds"]
     # None → config.ahn_repo() (AHN_REPO / Colab / vendor/AHN)
     resolved_repo = config.ahn_repo(ahn_repo) if ahn_repo is not None else None
+
+    if pressure_plan is not None and length_matched:
+        raise ValueError("pressure_plan and length_matched are mutually exclusive.")
 
     records: list[dict[str, Any]] = []
     descriptions: list[dict[str, Any]] = []
@@ -221,20 +250,21 @@ def run_grid(
         description = models.describe(name, model, tokenizer)
         descriptions.append(description)
         window = description["sliding_window"]
-        levels = pressure_levels(window, mode)
-        budget = max(levels) if length_matched else 0
+        budget = max(pressure_levels(window, mode)) if length_matched else 0
 
-        for pressure in levels:
-            for seed in seeds:
-                for item in items:
+        for seed in seeds:
+            for item in items:
+                for requested, intended in _trajectory_schedule(
+                    item, window, mode, pressure_plan
+                ):
                     trajectory = dataset.build_trajectory(
                         item,
                         tokenizer,
-                        tokens_after_target=pressure,
+                        tokens_after_target=requested,
                         seed=seed,
                         # Length matching trades filler for pressure so the total
                         # prompt stays constant across the sweep.
-                        tokens_before_target=max(budget - pressure, 0),
+                        tokens_before_target=max(budget - requested, 0),
                     )
                     record = {
                         **{k: trajectory[k] for k in
@@ -246,6 +276,8 @@ def run_grid(
                         "sliding_window": window,
                         **run_trial(model, tokenizer, trajectory),
                     }
+                    if intended is not None:
+                        record["intended_model_tokens_after_target"] = intended
                     record.update(
                         score_row(record["prediction"], record["gold"], record["fact_type"])
                     )

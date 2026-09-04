@@ -209,7 +209,7 @@ class TestSchemaColumns(unittest.TestCase):
         names = {c.name for c in schema.COLUMNS}
         for expected in ("malformed", "answer_canonical", "n_new_tokens",
                          "model_tokens_after_target", "requested_tokens_after_target",
-                         "target_fact_tokens"):
+                         "target_fact_tokens", "intended_model_tokens_after_target"):
             self.assertIn(expected, names)
         self.assertIn("prediction", names)
 
