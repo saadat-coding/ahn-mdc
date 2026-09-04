@@ -1,122 +1,131 @@
-# H2 — Compression threshold (published anchor)
+# H2 — Threshold-like vs gradual degradation in AHN recurrent memory
 
-**Owner:** Juan · **Hypothesis:** H2 · **Status:** `PENDING_VERIFICATION`
+**Owner:** Juan / team · **Hypothesis:** H2 · **Status:** `OPERATIONALISED (2026-09-04)`,
+Pilot Pass 2 pending
 
-Mentor constraint: the threshold must come from a **published paper**, not from us.
-Self-defining it would force an extra sensitivity-analysis table, and we only have 6 pages
-(NAACL industry track).
-
-Working value: **50 facts after the target**. Source not yet recorded — fill section 4
-and flip the status before any H2 number is reported. `ahn.config.compression_threshold`
-raises until then.
+This protocol was revised on 2026-09-04. The earlier version anchored H2 on a
+"published threshold T ≈ 768 model tokens" derived as `50 facts × 15.37 tokens/fact`.
+That derivation is **unsupported** (see `protocol/h2_threshold_decision_2026-09-04.md`)
+and has been retired from primary interpretation. Its history is preserved in
+Appendix A and in `config/experiment.yaml` (`threshold: status: DEPRECATED`).
 
 ---
 
-## 1. What the threshold is
+## 1. The scientific idea (unchanged)
 
-H2 claims that retrieval from AHN's compressed memory collapses past a compression
-threshold, and that where it sits depends on the recurrent architecture.
+Retrieval from AHN's compressed memory may degrade **non-linearly** — comparatively
+stable while the target is near exact attention, then dropping over a relatively
+narrow band of compression pressure — rather than smoothly across increasing
+pressure. The recurrent architecture may change *where* that happens and *how much*
+retrieval survives.
 
-The threshold **T** is a point on the compression-pressure axis: the amount of material
-the AHN module has to absorb after the target fact before retrieval is expected to fail.
-It is *not* an accuracy floor. Accuracy is what we measure on either side of T.
+## 2. What we do **not** assume
 
-`ahn.h2_threshold` therefore reports, per architecture:
+- We do **not** assume degradation collapses at any particular token count.
+- We do **not** claim any published result predicts an AHN failure point.
+- `K ≈ 242` (the near-window diagnostic knee) was **observed**, not predicted; it is
+  an exploratory per-run quantity, not an architectural constant, and it does not
+  redefine anything.
+- The sliding-window boundary **W = 256** is a known architectural reference. A
+  hypothesis of the form "H2 predicts collapse at W" would be exploratory — no
+  pre-registered protocol named W as a predicted break.
 
-| | |
-| --- | --- |
-| `acc_below_T` | accuracy at pressures below the published threshold |
-| `acc_above_T` | accuracy at pressures at or above it |
-| `drop_at_T` | the paired difference, with a bootstrap CI |
-| `shape` | whether a fit allowed to break at T beats a single smooth fit |
+## 3. Three quantities, kept separate
 
-The contrast is pre-registered at T rather than fitted, so nothing here is tuned to the
-data. That is the whole point of taking T from the literature — and it is why the shape
-test fixes the break at the published T rather than searching for the best changepoint,
-which would be self-defining the threshold through the back door.
+| symbol | value | role |
+|---|---|---|
+| **W** | 256 model tokens | architectural sliding-window boundary (design-fixed). Drawn as a reference line on every H2 figure. |
+| **K** | per-run empirical output (≈ 242 for gated_deltanet in the diagnostic) | isotonic-fit 0.5 crossing of strict accuracy vs `model_tokens_after_target`. Exploratory. Reported per arm and pooled per fact type. |
+| literature context | ~50 tokens (LSTM order sensitivity), ~200 tokens (usable context) — Khandelwal et al. 2018 | background/comparison only. Not an AHN threshold. |
 
-## 2. Unit problem: facts vs tokens
+## 4. H2 as operationalised
 
-The threshold is stated in **facts**, but the AHN module compresses **tokens**. A fact is
-a variable number of tokens, so a fact-denominated threshold is not length-controlled —
-which is exactly the confound the token axis exists to avoid.
+Everything is measured on `model_tokens_after_target` (canonical scientific pressure
+coordinate). `requested_tokens_after_target` is the design / matching key. All four
+arms see byte-identical items; trajectories are nested (a lower-pressure distractor
+block is a prefix of a higher-pressure one for the same item/seed).
 
-Resolution: T is declared in facts, converted once to tokens with the shared Qwen2.5
-tokenizer, and every measurement runs on the token axis.
+### 4.1 Primary question
 
-- `threshold.tokens_per_fact.measured` in `config/experiment.yaml` holds the conversion,
-  measured over the pilot's own contexts.
-- The pilot suggests roughly 16 tokens per fact: `facts_after_target = 50` came out at
-  `token_count = 807`. Treat that as an order-of-magnitude check, not the conversion.
-- Report the conversion and its spread in the paper. A reviewer will ask why the x-axis
-  changed units between the cited paper and our figure.
+> As target information moves away from exact attention and into AHN recurrent
+> memory, is retrieval degradation concentrated in a relatively narrow transition
+> region or distributed gradually across increasing memory pressure?
 
-## 3. Sanity check against the sliding window
+**Analysis.**
 
-AHN trains Qwen2.5-3B with `--sliding_window 256` (`examples/scripts/train_qwen2.5_3b_ahn_gdn.sh`).
-Nothing is compressed until a token leaves that window, so:
+| output | function | what it shows |
+|---|---|---|
+| strict-accuracy curve on model-tat, per arm | `h2_threshold.curves` | the descriptive degradation shape; W drawn as reference |
+| monotone (isotonic) descriptive fit + 0.9→0.1 drop location & width | `h2_threshold.knees` | where and how sharply accuracy falls |
+| smooth vs break-allowed fit (AIC) | `h2_threshold.shape_test` | narrower-than-smooth ⇒ "threshold-like"; comparable ⇒ "gradual". Break is an **explicit, disclosed analysis parameter** (primary: W; sensitivity: K), not a claimed published value. |
 
-- T must be **comfortably above one window**, or the target is still sitting in the lossless
-  KV cache and there is no compression to test. All arms, including the no-AHN baseline,
-  would sit at ceiling and every curve would be flat.
-- At ~16 tokens/fact, 50 facts ≈ 800 tokens ≈ **3.1 windows**. That clears the window and
-  lands in genuine recurrent-memory territory.
+### 4.2 Exploratory architecture question
 
-**Verify the window on the merged checkpoint before running.** `ahn.models.effective_window`
-reads it from the model config; the training script value is not automatically what the
-released checkpoint reports. If it comes back much larger than 256, T falls back inside the
-window and the threshold has to be re-derived.
+> Do AHN recurrent mechanisms differ in where the empirical transition occurs, or in
+> how much retrieval remains after the target leaves exact attention?
 
-## 4. Extraction record — fill before locking
+**Analysis.**
 
-Copy the sentence from the paper. Do not paraphrase.
+| output | function | what it shows |
+|---|---|---|
+| per-arm exploratory K (strict accuracy 0.5 crossing; abstention 0.5 crossing, separately) | `h2_threshold.knees` | do arms transition at different model-tat? |
+| accuracy at early-recurrent and deep-recurrent anchors, per arm, Wilson95 | `h2_threshold.summary` / knees table | does any recurrent mechanism retain measurable accuracy materially past W? |
+| paired arm-vs-arm differences under conservative recurrent trials | `h2_threshold.architecture_comparisons` | ordered architecture effect (exploratory at pilot N) |
 
-```
+Strict retrieval accuracy is the memory-degradation outcome. Abstention rate is the
+behavioural co-outcome — reported **beside** accuracy, never collapsed into it. If
+their transitions differ materially, that difference is preserved and flagged to H3.
 
-```
+## 5. Deprecated `drop_at_threshold` semantics
 
-## 5. Verification checklist
-
-- [ ] Read the PDF, not the abstract or a blog summary.
-- [ ] Venue is top-tier (ACL/NAACL/EMNLP/NeurIPS/ICML/ICLR/COLM/TACL/AAAI). Workshop and
-      arXiv-only papers do not satisfy the mentor's constraint.
-- [ ] The number is stated in the paper, not inferred by us from one of their figures.
-- [ ] The unit is recorded, and the fact→token conversion is measured, not assumed.
-- [ ] T is above one sliding window on the merged checkpoint.
-- [ ] The same T is applied to **all four** arms (Mamba2, DeltaNet, GatedDeltaNet,
-      Transformer baseline) — T is a property of the design, never tuned per architecture.
-- [ ] The pressure grid brackets T on both sides with at least two points each.
-- [ ] BibTeX entry added to the paper repo.
+`h2_threshold.drop_at_threshold` and `shape_test` still exist and still take a
+`threshold_tokens` argument. After 2026-09-04 that argument is a **stated analysis
+parameter** — the caller passes W (primary) or K (sensitivity) and the report
+labels it as such. `config.compression_threshold(strict=True)` still raises (the
+768 derivation is not a valid input); `strict=False` still returns the deprecated
+768 value but only as a pressure-grid backstop for the legacy `mini` plumbing mode,
+never as an H2 reference line.
 
 ## 6. Interaction with the accuracy targets
 
-Independent constraint from the mentor, applied as an acceptance gate:
+Unchanged from the mentor's constraint, enforced by `report.gate_report` for the
+`full` run: exact-memory (control) accuracy 70–80 % defensible, ≤ 85 % acceptable,
+≥ 90 % red flag. See `open_decisions.md` #5a for the proposed per-fact-type reframe
+(separate decision, not part of this revision).
 
-| Band | Meaning |
-| --- | --- |
-| 70–80% | defensible range |
-| ≤ 85% | acceptable upper bound |
-| ≥ 90% | red flag — the task is already solved by existing models, not publishable |
+---
 
-This band applies to the **exact-memory (control) condition**, where the target is still
-inside the window. The recurrent-memory condition is *expected* to fall below it — that
-drop is the result. If exact-memory accuracy lands ≥90%, the task is too easy and the
-fact/distractor design must be hardened before the full run.
-`ahn.report.gate_report` enforces this.
+## Appendix A — Deprecated: the 50-fact / 768-token derivation (history)
 
-## 7. Decision record
+Retained for the record. **Not** a valid H2 input.
 
-Flip to `LOCKED` only when every checklist box is ticked. Then copy `facts` into
-`threshold.facts` in `config/experiment.yaml` and set its status to match.
+The earlier protocol required T from a published paper and used a working value of
+"50 facts after the target", converted once to tokens:
 
-```yaml
-status: PENDING_VERIFICATION
-facts: 50                       # working value, unverified
-tokens: null                    # measured conversion, filled at runtime
-source: null                    # author, short title, venue, year
-source_id: null                 # DOI / arXiv id
-quote: null
-unit_in_paper: null
-locked_by: null
-locked_on: null
 ```
+T ≈ 50 × threshold.tokens_per_fact.measured (15.37) ≈ 768 model tokens ≈ 3.0 W
+```
+
+`config/experiment.yaml` still carries `threshold: {facts: 50, tokens_per_fact:
+{measured: 15.37}}` with `status: DEPRECATED` so the arithmetic is reproducible.
+
+**Why it was retired (2026-09-04):** the "50" was attributed to Khandelwal et al.
+2018 (arXiv:1805.04623), which actually reports ~50 *tokens* of order sensitivity in
+an **LSTM** perplexity study — not 50 facts, not retrieval accuracy, not AHN, and
+not a recurrent-memory saturation threshold. Full reasoning:
+`protocol/h2_threshold_decision_2026-09-04.md`.
+
+**Original verification checklist (never completed, kept for history):**
+
+- [ ] Read the PDF, not the abstract.
+- [ ] Top-tier venue.
+- [ ] Number stated in the paper, not inferred from a figure.
+- [ ] Unit recorded; fact→token conversion measured.
+- [ ] T above one sliding window on the merged checkpoint.
+- [ ] Same T applied to all four arms.
+- [ ] Pressure grid brackets T on both sides.
+- [ ] BibTeX added.
+
+If a genuinely relevant published AHN (or long-context recurrent-memory) threshold
+is found later, it can be added as a **secondary comparison line** — it does not
+re-block H2.

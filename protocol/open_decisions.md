@@ -61,7 +61,7 @@ confidence is on a different scale than H3 expects.
 
 | # | Decision | H | Owner | Status |
 | --- | --- | --- | --- | --- |
-| 3 | **H2 threshold T** from a published paper. Working value 50 facts. Never self-defined — that would force a sensitivity table we have no page budget for. See `h2_threshold.md`. | H2 | Juan | `BLOCKER` |
+| 3 | ~~**H2 threshold T** from a published paper. Working value 50 facts.~~ **Retired 2026-09-04.** The `50 facts × 15.37 = 768` derivation is unsupported — the cited Khandelwal et al. 2018 reports ~50 *tokens* of LSTM order sensitivity, not a 50-fact AHN saturation threshold. H2 is re-operationalised as a **team-owned methodology decision** (narrow-transition vs gradual degradation on `model_tokens_after_target`; W as architectural reference; K as exploratory per-run output; no minted T). See `protocol/h2_threshold_decision_2026-09-04.md` and revised `protocol/h2_threshold.md`. | H2 | team | `DONE` (2026-09-04) |
 | 4 | **ECE formula** from a top-venue paper. Guo et al. 2017 (ICML) is already cited in the research doc; confirm bin count and binning strategy against the PDF and freeze them. | H3 | Sumiya | `OPEN` |
 | 5 | **CWR threshold** — what confidence counts as *confidently* wrong. Same threshold everywhere. The pilot used 0.5 with no justification. | H3 | Sumiya | `OPEN` |
 | 6 | **Confidence definition.** Pilot used full-sequence token probability, which penalises long answers: pilot confidences span 1.8e-06 to 0.99. Decide between sequence probability and length-normalised, apply one everywhere. | H3 | Sumiya | `OPEN` |
@@ -149,6 +149,28 @@ not bias the benchmark (report it, do not remove it). **Temporal is H1 branch A 
 `gated_deltanet`**: the compressed target confers no measurable retrieval advantage
 over target-removed at the sampled recurrent pressures. Cross-arm confirmation folds
 into Pilot Pass 2.
+
+### 18. Pilot Pass 2 · `OPEN` · Saadat
+
+Four-arm pilot (transformer / mamba2 / deltanet / gated_deltanet) over the repaired
+benchmark and the corrected measurement coordinate, targeting the scientifically
+useful `model_tokens_after_target` region rather than window multiples. Design frozen
+2026-09-04:
+
+- **40 items** (8 per fact type — n_temporal = 8 gives the exact direction × position
+  × density 2×2×2), 1 seed, 11 model-tat target levels, 4 arms → **1,760 trials**.
+- Target model-tat grid `[170, 200, 225, 240, 255, 270, 290, 330, 430, 640, 1024]`
+  (`config/experiment.yaml` `pilot_pass2.target_model_tat`), calibrated to per-fact-type
+  requested-token values in `config/pilot_pass2_calibration.json` by
+  `scripts/pilot_pass2_dryrun.py` (no model — real Qwen tokenizer only).
+- Held: `max_new_tokens = 12`, scorer version, repaired temporal generator, production
+  `_PROMPT`, target/distractor construction.
+- Hard plumbing gates vs scientific warnings are separated (`ahnexp.pilot_pass2`).
+- Purpose and stop conditions: `protocol/h2_threshold_decision_2026-09-04.md` §5,
+  `protocol/pilot_pass2.md`.
+
+Not inferential evidence. After Pilot Pass 2 passes plumbing: methodology freeze →
+full experiment.
 
 ### 5a. Exact-memory acceptance gate reframe · `PROPOSED, AWAITING JUAN` · Saadat → Juan
 
