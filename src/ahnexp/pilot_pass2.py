@@ -31,8 +31,10 @@ from ahnexp import (
     config,
     dataset,
     evaluate,
+    h1_degradation,
     h2_threshold,
     h3_calibration,
+    metrics,
     report,
     schema,
 )
@@ -281,12 +283,73 @@ def plumbing_gates(
     past = int((df["model_tokens_after_target"] >= w).sum())
     add("compression_occurred", past > 0, f"{past}/{len(df)} trials at model_tat >= W={w}")
 
-    # 13. malformed rate not pathological (a scorer/data smell, not a science result)
+    # 13. malformed integrity — the 10% cap is the plumbing-smell threshold. Applied
+    #     per arm: an AHN arm above it is a FAIL; a no-AHN hard-window CONTROL arm
+    #     above it is CONTROL_BEHAVIOR (non-blocking) *only if* it is sane at the
+    #     deep in-window anchor AND rises with pressure (a real parser break would
+    #     be uniform, including in-window). A separate unconditional BLOCKER fires
+    #     if >=2 arms are above the cap at the deep in-window anchor.
     if "malformed" in df.columns:
-        rate = float(df["malformed"].mean())
-        add("malformed_rate_sane", rate <= 0.10, f"{rate:.1%} malformed (hard cap 10%)")
+        _malformed_gates(df, add, checks)
 
     return pd.DataFrame(checks)
+
+
+_MALFORMED_CAP = 0.10          # plumbing-smell threshold — do not tune to pass a run
+_ANCHOR_CAP = 0.05            # malformed at the deep in-window anchor for a control arm
+
+
+def _control_arms(df: pd.DataFrame) -> set[str]:
+    arms_cfg = config.experiment()["models"]["arms"]
+    return {a for a in df["architecture"].unique()
+            if arms_cfg.get(a, {}).get("ahn_implementation") is None}
+
+
+def _malformed_gates(df: pd.DataFrame, add, checks: list[dict]) -> None:
+    cap = _MALFORMED_CAP
+    controls = _control_arms(df)
+    anchor_mask = schema.deep_in_window_anchor(df)
+    group_key = schema.pressure_group_key(df)
+    coord = schema.pressure_coordinate(df)
+
+    for arm, g in df.groupby("architecture"):
+        rate = float(g["malformed"].mean())
+        anchor = g[anchor_mask.reindex(g.index, fill_value=False)]
+        anchor_rate = float(anchor["malformed"].mean()) if len(anchor) else 0.0
+        curve = (g.groupby(group_key)
+                   .agg(x=(coord, "mean"), m=("malformed", "mean")).sort_values("x")["m"].to_numpy())
+        localized = len(curve) >= 3 and float(curve[:2].mean()) <= _ANCHOR_CAP and float(curve.max()) > float(curve[:2].mean())
+
+        if arm in controls:
+            if rate <= cap:
+                checks.append({"gate": f"malformed_control:{arm}", "verdict": "PASS",
+                               "detail": f"{rate:.1%} malformed (control arm, within cap)"})
+            elif anchor_rate <= _ANCHOR_CAP and localized:
+                checks.append({"gate": f"malformed_control:{arm}", "verdict": "CONTROL_BEHAVIOR",
+                               "detail": f"{rate:.1%} malformed — hard-window control degeneration past its "
+                                         f"window ({anchor_rate:.1%} at the deep in-window anchor, "
+                                         "pressure-localised); reported, not blocking"})
+            else:
+                add(f"malformed_control:{arm}",
+                    False,
+                    f"{rate:.1%} malformed with {anchor_rate:.1%} at the deep in-window anchor / not "
+                    "pressure-localised — looks like a parser break, not control behaviour")
+        else:
+            add(f"malformed_rate:{arm}", rate <= cap,
+                f"{rate:.1%} malformed (AHN arm, hard cap {cap:.0%})")
+
+    # unconditional parser-break BLOCKER: high malformed where the target is trivially present
+    anchor = df[anchor_mask]
+    bad = sorted(a for a, g in anchor.groupby("architecture") if g["malformed"].mean() > cap)
+    add("malformed_no_parser_break", len(bad) < 2,
+        "deep in-window anchor malformed within cap for >=3 arms"
+        if len(bad) < 2 else f"{len(bad)} arms >10% malformed at the deep in-window anchor: {bad}")
+
+    # pooled — reported, never blocking
+    pooled = float(df["malformed"].mean())
+    checks.append({"gate": "malformed_pooled", "verdict": "REPORT",
+                   "detail": f"{pooled:.1%} pooled across arms — descriptive only "
+                             "(dominated by any hard-window control arm)"})
 
 
 def blocking(gates: pd.DataFrame) -> pd.DataFrame:
@@ -311,25 +374,33 @@ def scientific_warnings(df: pd.DataFrame) -> pd.DataFrame:
         if len(g) and acc < 0.05:
             note("low_deep_recurrent_accuracy", f"{arm}: {acc:.1%} strict at model_tat >= 2W (n={len(g)})")
 
-    kn = h2_threshold.knees(df)
-    if kn["k_strict_acc"].notna().sum() >= 2:
-        spread = float(np.nanmax(kn["k_strict_acc"]) - np.nanmin(kn["k_strict_acc"]))
-        note("per_arm_knee_spread", f"strict-accuracy K spans {spread:.0f} model tokens across arms")
+    kn = h2_threshold.knees(df).set_index("architecture")
+    controls = _control_arms(df)
+    ahn_k = kn.loc[[a for a in kn.index if a not in controls], "k_strict_acc"].dropna()
+    if len(ahn_k) >= 2:
+        spread = float(ahn_k.max() - ahn_k.min())
+        ctrl = ", ".join(f"{a}={kn.loc[a, 'k_strict_acc']:.0f}"
+                         for a in controls if a in kn.index and pd.notna(kn.loc[a, "k_strict_acc"]))
+        note("per_arm_knee_spread",
+             f"strict-accuracy K spans {spread:.0f} model tokens across AHN arms"
+             + (f" (control arm K: {ctrl})" if ctrl else ""))
 
     per_type = h2_threshold.knees(df, by="fact_type")
     if per_type["k_strict_acc"].notna().sum() >= 2:
         spread = float(np.nanmax(per_type["k_strict_acc"]) - np.nanmin(per_type["k_strict_acc"]))
         note("per_type_knee_spread", f"strict-accuracy K spans {spread:.0f} model tokens across fact types")
 
-    # non-monotonic abstention (per arm, over the requested-level curve)
+    # non-monotonic abstention (per arm, over the BALANCED scientific pressure grid)
     if "abstained" in df.columns:
-        design_key = schema.pressure_design_key(df)
+        group_key = schema.pressure_group_key(df)
         coord = schema.pressure_coordinate(df)
         for arm, g in df.groupby("architecture"):
-            curve = g.groupby(design_key).agg(x=(coord, "mean"), a=("abstained", "mean")).sort_values("x")
+            curve = g.groupby(group_key).agg(x=(coord, "mean"), a=("abstained", "mean")).sort_values("x")
             a = curve["a"].to_numpy()
             if len(a) >= 3 and np.any(np.diff(a) < -0.15):
-                note("non_monotonic_abstention", f"{arm}: abstention rate dips >0.15 as pressure rises")
+                worst = float(np.min(np.diff(a)))
+                note("non_monotonic_abstention",
+                     f"{arm}: abstention dips {worst:.2f} between adjacent balanced levels as pressure rises")
 
     # residual exact-memory failures (target fully in window through generation)
     if "target_fully_exact_through_generation" in df.columns:
@@ -348,34 +419,37 @@ def scientific_warnings(df: pd.DataFrame) -> pd.DataFrame:
 # Analysis outputs
 # ---------------------------------------------------------------------------
 
-def _answered_only(df: pd.DataFrame) -> pd.DataFrame:
-    if "abstained" not in df.columns:
-        return df
-    return df[df["abstained"] == 0]
+def _answered_valid(df: pd.DataFrame) -> pd.DataFrame:
+    """abstained == 0 AND malformed == 0 — the factual-answer population."""
+    return metrics.answered_valid(df)
 
 
-def analyse(df: pd.DataFrame, out: dict[str, Path] | None = None) -> dict[str, Any]:
+def analyse(df: pd.DataFrame, out: dict[str, Path] | None = None,
+            items: list[dataset.Item] | None = None) -> dict[str, Any]:
     """Build the H1 / H2 / H3 / knee tables and a summary dict. Writes files when
-    `out` maps {name: path-prefix}."""
+    `out` maps {name: path-prefix}. Aggregates ONE balanced cell per scientific
+    pressure level (`schema.pressure_group_key`)."""
     schema.validate(df, needs=("core", "h1", "h2", "h3"))
     w = int(df["sliding_window"].iloc[0])
 
-    # H1 — strict accuracy + abstention by architecture x fact_type x pressure
-    design_key = schema.pressure_design_key(df)
+    # H1 — strict accuracy + abstention + answered-valid accuracy by arch x type x pressure
+    group_key = schema.pressure_group_key(df)
     coord = schema.pressure_coordinate(df)
     h1_rows = []
-    for (arm, ft, lvl), g in df.groupby(["architecture", "fact_type", design_key]):
-        ans = _answered_only(g)
+    for (arm, ft, lvl), g in df.groupby(["architecture", "fact_type", group_key]):
+        av = _answered_valid(g)
         h1_rows.append({
             "architecture": arm, "fact_type": ft,
-            "requested_tokens_after_target": int(lvl),
+            "pressure_group": int(lvl),
             "model_tokens_after_target": float(g[coord].mean()),
             "strict_accuracy": float(g["correct"].mean()),
             "abstention_rate": float(g["abstained"].mean()) if "abstained" in g else np.nan,
-            "answered_only_accuracy": float(ans["correct"].mean()) if len(ans) else np.nan,
-            "n": int(len(g)), "n_answered": int(len(ans)),
+            "malformed_rate": float(g["malformed"].mean()) if "malformed" in g else np.nan,
+            "answered_valid_accuracy": float(av["correct"].mean()) if len(av) else np.nan,
+            "n": int(len(g)), "n_answered_valid": int(len(av)),
         })
-    h1 = pd.DataFrame(h1_rows).sort_values(["architecture", "fact_type", "requested_tokens_after_target"])
+    h1 = pd.DataFrame(h1_rows).sort_values(["architecture", "fact_type", "pressure_group"])
+    h1_transition_drop = h1_degradation.transition_drop(df)
 
     # H2 — curves on model-tat, per-arm knees, transition width, anchors
     h2_curves = h2_threshold.curves(df)
@@ -396,25 +470,32 @@ def analyse(df: pd.DataFrame, out: dict[str, Path] | None = None) -> dict[str, A
                                     "wilson_low": lo, "wilson_high": hi})
     h2_anchors = pd.DataFrame(anchor_rows)
 
-    # H3 — descriptive calibration; answered-response confidence vs abstention kept
-    # strictly separate (confidence in "I don't know" is not P(factual answer wrong)).
-    h3_answered = h3_calibration.by_condition(_answered_only(df)) if len(_answered_only(df)) else pd.DataFrame()
-    if "abstained" in df.columns:
-        rows_abst = []
-        for (arm, lvl), g in df.groupby(["architecture", design_key]):
-            abst = g[g["abstained"] == 1]
-            ans = g[g["abstained"] == 0]
-            rows_abst.append({
-                "architecture": arm, "requested_tokens_after_target": int(lvl),
-                "model_tokens_after_target": float(g[coord].mean()),
-                "abstention_rate": float(g["abstained"].mean()),
-                "mean_confidence_on_abstention": float(abst["confidence"].mean()) if len(abst) else np.nan,
-                "mean_confidence_on_answered": float(ans["confidence"].mean()) if len(ans) else np.nan,
-                "n": int(len(g)),
-            })
-        h3_abstention = pd.DataFrame(rows_abst)
-    else:
-        h3_abstention = pd.DataFrame()
+    # H3 — three mutually exclusive populations. Factual calibration = answered_valid
+    # ONLY (confidence in "I don't know" / in a degeneration is not factual confidence).
+    av = _answered_valid(df)
+    h3_answered_valid = (
+        h3_calibration.by_pressure(df, population="answered_valid") if len(av) else pd.DataFrame()
+    )
+    h3_answered_valid_by_arm = pd.concat(
+        [h3_calibration.by_condition(g, population="answered_valid").assign(architecture=a)
+         for a, g in df.groupby("architecture") if len(_answered_valid(g))],
+        ignore_index=True,
+    ) if len(av) else pd.DataFrame()
+    h3_abstention = pd.concat(
+        [h3_calibration.abstention_confidence(g).assign(architecture=a)
+         for a, g in df.groupby("architecture")],
+        ignore_index=True,
+    ) if "abstained" in df.columns else pd.DataFrame()
+    h3_malformed = pd.concat(
+        [h3_calibration.malformed_report(g).assign(architecture=a)
+         for a, g in df.groupby("architecture")],
+        ignore_index=True,
+    ) if "malformed" in df.columns else pd.DataFrame()
+
+    # boundary / exact-memory reporting: coarse condition + span flags + deep anchor
+    boundary = _boundary_table(df)
+    temporal = report.temporal_response_table(df, items=items) if "temporal" in set(df["fact_type"]) else pd.DataFrame()
+    residual = _residual_fully_exact_failures(df)
 
     summary = {
         "purpose": "Pilot Pass 2 — plumbing + localization, NOT inferential evidence",
@@ -429,15 +510,22 @@ def analyse(df: pd.DataFrame, out: dict[str, Path] | None = None) -> dict[str, A
         "per_arm_abstention_K": h2_knees.set_index("architecture")["k_abstention"].round(1).to_dict(),
         "per_arm_strict_drop_width_90_10": h2_knees.set_index("architecture")["strict_drop_width_90_10"].round(1).to_dict(),
         "per_type_strict_accuracy_K": h2_type_knees.set_index("fact_type")["k_strict_acc"].round(1).to_dict(),
+        "grouping": "one balanced cell per intended model-tat target "
+                    "(schema.pressure_group_key); x = realised model_tokens_after_target",
         "notes": "K values are exploratory per-run descriptive quantities; W is an "
-                 "architectural reference, never a predicted break. No baseline-adjusted "
-                 "metric (open_decisions #17 still partially resolved).",
+                 "architectural reference, never a predicted break. Factual ECE/CWR "
+                 "over answered_valid only. No baseline-adjusted metric "
+                 "(open_decisions #17 still open).",
     }
 
     tables = {
-        "h1": h1, "h2_curves": h2_curves, "h2_knees": h2_knees,
+        "h1": h1, "h1_transition_drop": h1_transition_drop,
+        "h2_curves": h2_curves, "h2_knees": h2_knees,
         "h2_type_knees": h2_type_knees, "h2_anchors": h2_anchors,
-        "h3_answered": h3_answered, "h3_abstention": h3_abstention,
+        "h3_answered_valid": h3_answered_valid,
+        "h3_answered_valid_by_arm": h3_answered_valid_by_arm,
+        "h3_abstention": h3_abstention, "h3_malformed": h3_malformed,
+        "boundary": boundary, "temporal": temporal, "residual_fully_exact_failures": residual,
         "warnings": scientific_warnings(df),
     }
 
@@ -450,13 +538,53 @@ def analyse(df: pd.DataFrame, out: dict[str, Path] | None = None) -> dict[str, A
     return {"summary": summary, "tables": tables}
 
 
+def _boundary_table(df: pd.DataFrame) -> pd.DataFrame:
+    """Per-arm outcome rates across coarse condition, span flags, and the deep anchor."""
+    regimes: dict[str, pd.Series] = {
+        "memory_condition:exact_memory": df["memory_condition"] == "exact_memory",
+        "memory_condition:recurrent_memory": df["memory_condition"] == "recurrent_memory",
+        "deep_in_window_anchor": schema.deep_in_window_anchor(df),
+    }
+    for flag in schema._BOUNDARY_DERIVED:
+        if flag in df.columns and df[flag].dtype == bool:
+            regimes[flag] = df[flag].fillna(False)
+    rows = []
+    for name, mask in regimes.items():
+        sub = df[mask]
+        for arm, g in sub.groupby("architecture"):
+            rows.append({
+                "regime": name, "architecture": arm, "n": int(len(g)),
+                "strict_accuracy": float(g["correct"].mean()),
+                "abstention_rate": float(g["abstained"].mean()) if "abstained" in g else np.nan,
+                "malformed_rate": float(g["malformed"].mean()) if "malformed" in g else np.nan,
+            })
+    return pd.DataFrame(rows)
+
+
+def _residual_fully_exact_failures(df: pd.DataFrame) -> pd.DataFrame:
+    """Rows where the target is fully exact through generation yet `correct == 0`.
+
+    Kept visible (open audit finding); no mechanism attributed.
+    """
+    if "target_fully_exact_through_generation" not in df.columns:
+        return pd.DataFrame()
+    res = df[df["target_fully_exact_through_generation"].fillna(False) & (df["correct"] == 0)]
+    cols = ["item_id", "fact_type", "architecture", "intended_model_tokens_after_target",
+            "model_tokens_after_target", "gold", "prediction", "abstained", "malformed", "confidence"]
+    return res[[c for c in cols if c in res.columns]].reset_index(drop=True)
+
+
 def _write_group(name: str, tables: dict[str, pd.DataFrame], prefix: Path) -> None:
     prefix.parent.mkdir(parents=True, exist_ok=True)
     members = {
-        "h1": {"": "h1"},
+        "h1": {"": "h1", "transition_drop": "h1_transition_drop"},
         "h2": {"curves": "h2_curves", "anchors": "h2_anchors"},
-        "h3": {"answered": "h3_answered", "abstention": "h3_abstention"},
-        "knees": {"by_arm": "h2_knees", "by_fact_type": "h2_type_knees"},
+        "h3": {"answered_valid": "h3_answered_valid",
+               "answered_valid_by_arm": "h3_answered_valid_by_arm",
+               "abstention": "h3_abstention", "malformed": "h3_malformed"},
+        "knees": {"by_arm": "h2_knees", "by_fact_type": "h2_type_knees",
+                  "boundary": "boundary", "temporal": "temporal",
+                  "residual_fully_exact_failures": "residual_fully_exact_failures"},
     }[name]
     for suffix, key in members.items():
         tbl = tables[key]

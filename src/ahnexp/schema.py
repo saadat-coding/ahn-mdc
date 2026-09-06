@@ -84,23 +84,66 @@ REQUIRED = {
     "h3": ("confidence",),
 }
 
-# The design lever (what the grid requested) and the scientific pressure coordinate
-# (what the model actually saw after the target). Analyses group / match on the
-# former and plot / fit against the latter. Both fall back to `tokens_after_target`
-# for frames built before the richer columns existed (the pilot CSV, old parquets,
-# synthetic fixtures).
+# Three pressure quantities, kept distinct:
+#   * scientific group key  — the balanced pressure level to aggregate one cell per
+#     (`pressure_group_key`). For a model-tat-targeted grid (Pilot Pass 2) this is
+#     `intended_model_tokens_after_target`; per-fact-type calibration means
+#     `requested_tokens_after_target` has many more distinct values than the grid
+#     has levels, so grouping on it fragments balanced n cells into small ones.
+#   * design lever          — what `build_trajectory` was actually asked for
+#     (`pressure_design_key`); provenance / dedup identity of a trial.
+#   * scientific x-axis     — what the model saw after the target
+#     (`pressure_coordinate` = `model_tokens_after_target`); fit / plot against this.
+# All fall back to `tokens_after_target` for legacy frames (pilot CSV, old parquets,
+# synthetic fixtures) so mini / smoke / pilot behaviour is unchanged.
+_GROUP_KEYS = ("intended_model_tokens_after_target", "requested_tokens_after_target")
 _DESIGN_KEY = "requested_tokens_after_target"
 _COORDINATE = "model_tokens_after_target"
 
 
+def pressure_group_key(df: pd.DataFrame) -> str:
+    """Column to aggregate ONE balanced cell per scientific pressure level.
+
+    `intended_model_tokens_after_target` when present (model-tat-targeted grids),
+    else `requested_tokens_after_target`, else `tokens_after_target`.
+    """
+    for key in _GROUP_KEYS:
+        if key in df.columns:
+            return key
+    return "tokens_after_target"
+
+
 def pressure_design_key(df: pd.DataFrame) -> str:
-    """Column identifying a trial's requested pressure level (grouping / matching)."""
+    """Column identifying a trial's requested pressure lever (provenance / dedup).
+
+    Not the scientific grouping key — see `pressure_group_key`.
+    """
     return _DESIGN_KEY if _DESIGN_KEY in df.columns else "tokens_after_target"
 
 
 def pressure_coordinate(df: pd.DataFrame) -> str:
     """Column holding the realised pressure coordinate (the scientific x-axis)."""
     return _COORDINATE if _COORDINATE in df.columns else "tokens_after_target"
+
+
+def deep_in_window_anchor(df: pd.DataFrame) -> pd.Series:
+    """Boolean mask for the deepest in-window pressure anchor.
+
+    The cleanest empirical control in a pressure sweep: the lowest scientific
+    pressure level whose median `model_tokens_after_target` sits comfortably below
+    the window (< 0.8 W), where every arm is near ceiling and the AHN recurrent
+    kernel is inert. This is NOT a redefinition of `memory_condition` or of "exact
+    memory" — it is one selected anchor, reported alongside the coarse and
+    span-aware boundary flags.
+    """
+    key = pressure_group_key(df)
+    coord = _COORDINATE if _COORDINATE in df.columns else "tokens_after_target"
+    for level in sorted(df[key].unique()):
+        sub = df[df[key] == level]
+        w = float(sub["sliding_window"].median())
+        if float(sub[coord].median()) < 0.8 * w:
+            return df[key] == level
+    return df[key] == sorted(df[key].unique())[0]
 
 
 _BOUNDARY_PRIMITIVES = (
@@ -144,7 +187,7 @@ def validate(df: pd.DataFrame, *, needs: tuple[str, ...] = ("core",)) -> pd.Data
             raise ValueError("`confidence` must lie in [0, 1].")
 
     duplicated = df.duplicated(
-        subset=["item_id", "architecture", "seed", pressure_design_key(df)]
+        subset=["item_id", "architecture", "seed", pressure_group_key(df)]
     )
     if duplicated.any():
         raise ValueError(f"{int(duplicated.sum())} duplicated trials in the results frame.")

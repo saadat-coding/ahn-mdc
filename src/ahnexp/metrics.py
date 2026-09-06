@@ -16,6 +16,39 @@ def accuracy(df: pd.DataFrame) -> float:
     return float(df["correct"].mean())
 
 
+def answered_valid(df: pd.DataFrame) -> pd.DataFrame:
+    """Rows that are a factual answer attempt: not an abstention, not malformed.
+
+    The only population where `confidence` is confidence in a factual answer and
+    where factual ECE / Brier / CWR are meaningful.
+    """
+    mask = pd.Series(True, index=df.index)
+    if "abstained" in df.columns:
+        mask &= df["abstained"] == 0
+    if "malformed" in df.columns:
+        mask &= df["malformed"] == 0
+    return df[mask]
+
+
+def baseline_adjusted_accuracy(df: pd.DataFrame, baseline) -> float:
+    """`(accuracy - baseline) / (1 - baseline)`, negatives left unclipped.
+
+    `baseline` is EXPLICIT and provenance-bearing — a scalar, a
+    `{fact_type: float}` mapping, or a per-row Series. This function never reads a
+    universal chance value from config. Temporal's mathematical 0.5 (two-alternative
+    choice) must be passed explicitly and is NOT equivalent to the provisional
+    free-response `chance` values (open_decisions #17).
+    """
+    acc = df["correct"].astype(float)
+    if isinstance(baseline, dict):
+        b = df["fact_type"].map(baseline).astype(float)
+    elif isinstance(baseline, pd.Series):
+        b = baseline.reindex(df.index).astype(float)
+    else:
+        b = pd.Series(float(baseline), index=df.index)
+    return float(((acc - b) / (1.0 - b)).mean())
+
+
 def retrieval_failure_rate(df: pd.DataFrame) -> float:
     """Wrong answers, excluding explicit abstentions.
 
@@ -105,6 +138,11 @@ def confidently_wrong_rate(df: pd.DataFrame, threshold: float | None = None) -> 
 
     The most direct evidence for H3: memory failure the model does not signal.
     The threshold is provisional — see `protocol/open_decisions.md` #5.
+
+    Pass ``metrics.answered_valid(df)`` — an abstention scores ``correct=0`` while
+    its confidence is confidence in "I don't know", so including abstentions /
+    malformed here inflates the rate meaninglessly. `h3_calibration` does this by
+    default.
     """
     threshold = threshold if threshold is not None else float(
         config.experiment()["calibration"]["cwr_threshold"]
@@ -119,11 +157,11 @@ def confidence_accuracy_gap(df: pd.DataFrame) -> float:
 
 
 def chance_corrected_accuracy(df: pd.DataFrame) -> float:
-    """Accuracy rescaled against the fact type's chance floor.
-
-    Categories differ in how guessable they are — a two-way temporal question is
-    right half the time by chance, a numerical ID essentially never. Comparing raw
-    accuracy across them would credit temporal facts with robustness they do not have.
+    """DEPRECATED (open_decisions #17) — reads the provisional `config/facts.yaml`
+    `chance` block silently. The 0.2 free-response floors are unverified and
+    probably wrong; temporal's 0.5 is a mathematical property that must not be
+    treated as equivalent. Prefer `baseline_adjusted_accuracy(df, baseline)` with
+    an explicit, provenance-bearing baseline. Kept only so existing H1 tables render.
     """
     chance = config.facts()["chance"]
     floors = df["fact_type"].map(chance).astype(float)

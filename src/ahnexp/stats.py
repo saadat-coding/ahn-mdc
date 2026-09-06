@@ -103,7 +103,7 @@ def paired_difference(
     """
     cfg = settings()
     subset = df[df["memory_condition"] == condition] if condition else df
-    key = ["item_id", schema.pressure_design_key(df), "seed"]
+    key = ["item_id", schema.pressure_group_key(df), "seed"]
     wide = (
         subset[subset["architecture"].isin([arm_a, arm_b])]
         .pivot_table(index=key, columns="architecture", values=value_col)
@@ -215,7 +215,7 @@ def crossing_x(x, y_fit, level: float) -> float:
 
 def check_cell_sizes(df: pd.DataFrame, by: list[str] | None = None) -> pd.DataFrame:
     """Cells too thin to plot, so underpowered points do not reach a figure."""
-    by = by or ["architecture", schema.pressure_design_key(df)]
+    by = by or ["architecture", schema.pressure_group_key(df)]
     minimum = int(settings()["min_cell_size"])
     counts = df.groupby(by).size().rename("n").reset_index()
     return counts[counts["n"] < minimum]
@@ -231,9 +231,9 @@ def assert_matched_design(df: pd.DataFrame) -> None:
     if len(arms) < 2:
         return
 
-    design_key = schema.pressure_design_key(df)
+    group_key = schema.pressure_group_key(df)
     cells = df.groupby("architecture").apply(
-        lambda g: set(zip(g["item_id"], g[design_key], g["seed"])),
+        lambda g: set(zip(g["item_id"], g[group_key], g["seed"])),
         include_groups=False,
     )
     reference = cells[arms[0]]

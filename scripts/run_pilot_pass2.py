@@ -95,7 +95,7 @@ def _analyse_and_gate(root, df, items, calibration, verify) -> bool:
         "h3": root / exp["pass2_h3"],
         "knees": root / exp["pass2_knees"],
     }
-    res = pilot_pass2.analyse(df, out=out)
+    res = pilot_pass2.analyse(df, out=out, items=items)
     for k, v in out.items():
         print(f"  wrote {v}*")
     print("\nsummary:")

@@ -12,6 +12,115 @@ from ahnexp import config, models, stats
 
 
 # ---------------------------------------------------------------------------
+# Paper-facing construct names
+# ---------------------------------------------------------------------------
+
+_CONSTRUCT_NAMES = {
+    # `multi-hop` is a co-located two-clause target sentence
+    # ("A manages B. B works for C.") — not distributed multi-hop retrieval.
+    "multi-hop": "compound relational",
+}
+
+
+def fact_type_label(fact_type: str) -> str:
+    """Display / construct name for paper-facing tables.
+
+    The raw `fact_type` value is unchanged in the data and the scorer; this is the
+    name a reader should see. `config/facts.yaml` `types.<t>.construct` overrides
+    the built-in `_CONSTRUCT_NAMES` fallback.
+    """
+    entry = config.facts()["types"].get(fact_type, {})
+    return (entry.get("construct") or entry.get("display_name")
+            or _CONSTRUCT_NAMES.get(fact_type) or fact_type)
+
+
+def with_construct_labels(table: pd.DataFrame, column: str = "fact_type") -> pd.DataFrame:
+    """Add a `construct` column next to a fact-type column, for paper-facing output."""
+    if column not in table.columns:
+        return table
+    out = table.copy()
+    out.insert(list(out.columns).index(column) + 1, "construct",
+               out[column].map(fact_type_label))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Temporal response-bias reporting
+# ---------------------------------------------------------------------------
+
+_PERSON_RE = None
+
+
+def temporal_response_table(df: pd.DataFrame, items=None) -> pd.DataFrame:
+    """Per temporal item: nuisance factors x outcomes, for the final analysis.
+
+    Factors (`gold_is_higher`, `gold_first_listed`, `distractor_density`) are
+    reconstructed from the deterministic generator; the repaired design
+    counterbalances them 4/4, so any accuracy asymmetry across them is documented
+    model response bias (`protocol/temporal_repair_validation.md`), not leakage.
+    Reporting only — the generator / prompt / scorer are untouched.
+    """
+    import re
+
+    from ahnexp import dataset
+
+    person = re.compile(r"(?i)person[ _]?(\d+)")
+    tdf = df[df["fact_type"] == "temporal"]
+    if tdf.empty:
+        return pd.DataFrame()
+
+    if items is None:
+        n_items = int(df["item_id"].nunique())
+        seed = int(df["seed"].iloc[0])
+        items = dataset.generate_items(n_items=n_items, seed=seed)
+    info: dict[str, dict] = {}
+    for it in items:
+        if it.fact.fact_type != "temporal":
+            continue
+        q = [int(x) for x in person.findall(it.fact.question)]
+        gold_n = int(person.search(it.fact.answer).group(1))
+        info[it.item_id] = {
+            "gold_is_higher": gold_n == max(q),
+            "gold_first_listed": q[0] == gold_n,
+            "distractor_density": it.distractor_density,
+        }
+    missing = sorted(set(tdf["item_id"]) - set(info))
+    if missing:
+        raise ValueError(
+            f"cannot reconstruct temporal factors for {missing} — pass `items` "
+            "from the run, or the frame's (n_items, seed) do not match the generator."
+        )
+
+    from ahnexp import metrics
+
+    rows = []
+    for iid, g in tdf.groupby("item_id"):
+        av = metrics.answered_valid(g)
+        rows.append({
+            "item_id": iid, **info[iid], "n": int(len(g)),
+            "strict_accuracy": float(g["correct"].mean()),
+            "abstention_rate": float(g["abstained"].mean()) if "abstained" in g else np.nan,
+            "malformed_rate": float(g["malformed"].mean()) if "malformed" in g else np.nan,
+            "answered_valid_accuracy": float(av["correct"].mean()) if len(av) else np.nan,
+            "n_answered_valid": int(len(av)),
+        })
+    per_item = pd.DataFrame(rows).sort_values("item_id").reset_index(drop=True)
+
+    # factor marginals over answered_valid temporal rows
+    av_t = metrics.answered_valid(tdf).copy()
+    for f in ("gold_is_higher", "gold_first_listed"):
+        av_t[f] = av_t["item_id"].map(lambda i: info[i][f])
+    marginals = []
+    for f in ("gold_is_higher", "gold_first_listed", "distractor_density"):
+        col = av_t["distractor_density"] if f == "distractor_density" else av_t[f]
+        for val, sub in av_t.groupby(col):
+            marginals.append({"factor": f, "value": str(val), "n_answered_valid": int(len(sub)),
+                              "answered_valid_accuracy": float(sub["correct"].mean())})
+    per_item.attrs["marginals"] = pd.DataFrame(marginals)
+    return per_item
+
+
+# ---------------------------------------------------------------------------
 # Gates
 # ---------------------------------------------------------------------------
 

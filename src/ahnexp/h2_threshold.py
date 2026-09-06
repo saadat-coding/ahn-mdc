@@ -1,17 +1,25 @@
-"""H2 — threshold-like collapse, and the architecture comparison.
+"""H2 — is degradation concentrated in a narrow transition or spread gradually?
 
-Claim: degradation is nonlinear in compression pressure — stable while the recurrent
-state has spare capacity, then a sharp drop once it saturates.
+Descriptive / localization framing (see `protocol/h2_threshold.md`, revised
+2026-09-04). The old "published threshold T" framing is deprecated — no T is
+restored here.
 
-Two tests, both anchored on the published threshold T:
+  * `curves`  — strict accuracy vs the realised pressure coordinate
+    (`model_tokens_after_target`), one curve per architecture, aggregated ONE
+    balanced cell per scientific pressure level (`schema.pressure_group_key` —
+    `intended_model_tokens_after_target` for a model-tat-targeted grid).
+  * `knees`   — exploratory per-run isotonic-fit 0.5 crossings of strict accuracy
+    and (separately) abstention, plus the 0.9->0.1 strict-drop width. K is a
+    per-run empirical output, NOT an architectural constant, and NOT the same
+    quantity as the sliding-window boundary W.
+  * `drop_at_threshold` / `shape_test` — retained for callers that pass an
+    explicit break (W as the design reference, or a per-run knee for sensitivity).
+    `config.compression_threshold()` still raises — the 768 derivation is not a
+    valid input.
 
-1. **Drop at T.** Accuracy below T versus at or above it. Pre-registered at T, so
-   the split point is not chosen from our data.
-2. **Shape.** A piecewise fit that is allowed to break at T, against a single smooth
-   fit. If the smooth fit does as well, degradation is gradual and H2 is refuted.
-
-Estimating the changepoint from our own curves would be self-defining the threshold,
-which the mentor ruled out. T is read from `config`, which raises until it is cited.
+`_slopes` (recurrent-only, feeds `summary`) is LEGACY: when every clearly-recurrent
+level is at the accuracy floor it returns ~0. That is a finding about the pressure
+grid, not an H2 result; use `knees` / `h1_degradation.transition_slope` instead.
 """
 
 from __future__ import annotations
@@ -29,11 +37,11 @@ def curves(df: pd.DataFrame) -> pd.DataFrame:
     coordinate `model_tokens_after_target`. All levels retained (level 0 included).
     """
     schema.validate(df, needs=("core", "h2"))
-    design_key = schema.pressure_design_key(df)
+    group_key = schema.pressure_group_key(df)
     coord = schema.pressure_coordinate(df)
 
     rows = []
-    for (arm, level), group in df.groupby(["architecture", design_key]):
+    for (arm, level), group in df.groupby(["architecture", group_key]):
         low, high = stats.cluster_bootstrap_ci(group)
         window = int(group["sliding_window"].iloc[0])
         model_tat = float(group[coord].median())
@@ -41,7 +49,8 @@ def curves(df: pd.DataFrame) -> pd.DataFrame:
         rows.append(
             {
                 "architecture": arm,
-                "requested_tokens_after_target": int(level),
+                "pressure_group": int(level),
+                "requested_tokens_after_target": int(group[schema.pressure_design_key(group)].median()),
                 "tokens_after_target": int(group["tokens_after_target"].median()),
                 "model_tokens_after_target": model_tat,
                 "model_tokens_after_target_mean": float(group[coord].mean()),
@@ -57,7 +66,7 @@ def curves(df: pd.DataFrame) -> pd.DataFrame:
 
     return (
         pd.DataFrame(rows)
-        .sort_values(["architecture", "requested_tokens_after_target"])
+        .sort_values(["architecture", "pressure_group"])
         .reset_index(drop=True)
     )
 
@@ -110,12 +119,12 @@ def shape_test(df: pd.DataFrame, threshold_tokens: int | None = None) -> pd.Data
         config.compression_threshold() if threshold_tokens is None else int(threshold_tokens)
     )
 
-    design_key = schema.pressure_design_key(df)
+    group_key = schema.pressure_group_key(df)
     coord = schema.pressure_coordinate(df)
 
     rows = []
     for arm, group in df.groupby("architecture"):
-        cell = group[group[design_key] > 0].groupby(design_key).agg(
+        cell = group[group[group_key] > 0].groupby(group_key).agg(
             accuracy=("correct", "mean"),
             coordinate=(coord, "mean"),
             window=("sliding_window", "first"),
@@ -217,12 +226,14 @@ def summary(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _slopes(df: pd.DataFrame) -> pd.DataFrame:
-    design_key = schema.pressure_design_key(df)
+    """LEGACY recurrent-only slope (see module docstring): ~0 when the recurrent
+    region is at the accuracy floor. Kept for `summary` backward compatibility."""
+    group_key = schema.pressure_group_key(df)
     coord = schema.pressure_coordinate(df)
-    subset = df[(df["memory_condition"] == "recurrent_memory") & (df[design_key] > 0)]
+    subset = df[(df["memory_condition"] == "recurrent_memory") & (df[group_key] > 0)]
     rows = []
     for arm, group in subset.groupby("architecture"):
-        cell = group.groupby(design_key).agg(
+        cell = group.groupby(group_key).agg(
             accuracy=("correct", "mean"),
             coordinate=(coord, "mean"),
             window=("sliding_window", "first"),
@@ -241,19 +252,21 @@ def knees(df: pd.DataFrame, by: str | None = None) -> pd.DataFrame:
     Per arm (and, with `by="fact_type"`, pooled per fact type across arms): the
     isotonic-fit 0.5 crossing of strict accuracy vs `model_tokens_after_target`, the
     same for abstention rate (separately — never collapsed), and the 0.9->0.1 strict
-    drop width as a descriptive pilot quantity. Aggregated at the balanced requested
-    levels; x is the realised model-tat mean within each level.
+    drop width as a descriptive pilot quantity. Aggregated ONE balanced cell per
+    scientific pressure level (`schema.pressure_group_key`); x is the realised
+    model-tat mean within each level.
 
-    NOT an H2 result. K is a per-run empirical output, not an architectural constant.
+    NOT an H2 result. K is a per-run empirical output, not an architectural constant,
+    and not the same quantity as W.
     """
     schema.validate(df, needs=("core", "h2"))
-    design_key = schema.pressure_design_key(df)
+    group_key = schema.pressure_group_key(df)
     coord = schema.pressure_coordinate(df)
     group_cols = ["architecture"] if by is None else [by]
 
     rows = []
     for keys, block in df.groupby(group_cols):
-        cell = block.groupby(design_key).agg(
+        cell = block.groupby(group_key).agg(
             model_tat=(coord, "mean"),
             strict_accuracy=("correct", "mean"),
             abstention=("abstained", "mean") if "abstained" in block else ("correct", "mean"),

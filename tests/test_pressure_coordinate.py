@@ -1,11 +1,14 @@
 """Measurement-coordinate correction: the H1/H2/H3 curves and the H2 threshold
 split key on the canonical quantities.
 
-  * design / matching key   = requested_tokens_after_target
+  * scientific group key    = schema.pressure_group_key (intended target -> requested
+                              -> tokens_after_target); one balanced cell per level
   * scientific x-coordinate  = model_tokens_after_target
 
-Legacy frames without the richer columns fall back to tokens_after_target.
-No GPU. `python -m unittest discover -s tests`.
+Frames here carry `requested_tokens_after_target` but not `intended_model_tokens_
+after_target`, so `pressure_group_key` falls back to `requested_tokens_after_target`
+and behaviour is unchanged. Legacy frames without either fall back to
+`tokens_after_target`. No GPU. `python -m unittest discover -s tests`.
 """
 
 from __future__ import annotations
@@ -117,9 +120,9 @@ class TestH1AndH3GroupOnRequested(unittest.TestCase):
         for levels in per_type_levels:
             self.assertEqual(sorted(levels), [0, 128, 256, 512, 1024])
 
-    def test_h3_by_pressure_groups_on_requested_level(self):
-        bp = h3_calibration.by_pressure(self.df)
-        self.assertEqual(sorted(bp["requested_tokens_after_target"]), [0, 128, 256, 512, 1024])
+    def test_h3_by_pressure_groups_on_the_scientific_pressure_level(self):
+        bp = h3_calibration.by_pressure(self.df)   # frame has no intended target -> groups on requested
+        self.assertEqual(sorted(bp["pressure_group"]), [0, 128, 256, 512, 1024])
         for _, r in bp.iterrows():
             self.assertAlmostEqual(r["pressure_windows"], r["model_tokens_after_target"] / 256.0, places=6)
 
