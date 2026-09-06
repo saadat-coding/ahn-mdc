@@ -150,7 +150,34 @@ not bias the benchmark (report it, do not remove it). **Temporal is H1 branch A 
 over target-removed at the sampled recurrent pressures. Cross-arm confirmation folds
 into Pilot Pass 2.
 
-### 18. Pilot Pass 2 · `OPEN` · Saadat
+### 18. Pilot Pass 2 · `RUN COMPLETE + AUDITED (2026-09-05)`; grid/seed/#17 freeze pending · Saadat
+
+**Run:** 1,760 rows (4 arms × 40 items × 11 targets × seed 0). Pipeline / provenance /
+scorer / trajectories / all four architectures (incl. the `mamba_ssm` `a096b91`
+patch) passed the hostile audit. Not inferential evidence.
+
+**Analysis-layer corrections applied** (commits on `saadat-pipeline-validation`,
+2026-09-05): canonical `schema.pressure_group_key` (aggregate one balanced cell per
+intended target); H2 `knees`/`curves` regrouped → AHN K_strict 244–246 / abstention
+K 250–252 / transformer 213 / 476 / width 93 / 68, and `non_monotonic_abstention`
+no longer an artifact; H1 `transition_slope`/`transition_drop` over an explicit band
+(legacy recurrent `slopes` deprecated); H3 three populations with factual
+ECE/Brier/CWR over `answered_valid` only; malformed gate reframed per-arm with a
+non-blocking `CONTROL_BEHAVIOR` for the hard-window control + an unconditional
+parser-break BLOCKER; `deep_in_window_anchor` empirical control + boundary table;
+"multi-hop" → "compound relational" (display only); temporal response-bias table;
+`metrics.baseline_adjusted_accuracy(df, baseline)` explicit-arg. See
+`protocol/pilot_pass2.md` §8.
+
+**Still BLOCKER before the inferential run:** (a) freeze the final grid — 6/11
+current levels are at the accuracy floor, the transition is under-resolved (candidate
+`[150,175,195,210,220,230,240,250,260,275,300,340,480,850]`, NOT frozen); (b) seed
+count (≥ 5); (c) exact-memory acceptance control = deepest in-window level (apply
+`#5a` or successor); (d) #17 (raw accuracy primary, baseline explicit, temporal 0.5 ≠
+free-response null). Temporal in-window over-abstention on ~3 items is kept + reported
+— **not** a temporal redesign.
+
+---
 
 Four-arm pilot (transformer / mamba2 / deltanet / gated_deltanet) over the repaired
 benchmark and the corrected measurement coordinate, targeting the scientifically

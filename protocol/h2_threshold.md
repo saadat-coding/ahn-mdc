@@ -41,9 +41,16 @@ retrieval survives.
 ## 4. H2 as operationalised
 
 Everything is measured on `model_tokens_after_target` (canonical scientific pressure
-coordinate). `requested_tokens_after_target` is the design / matching key. All four
-arms see byte-identical items; trajectories are nested (a lower-pressure distractor
-block is a prefix of a higher-pressure one for the same item/seed).
+coordinate). Analyses aggregate **one balanced cell per scientific pressure level**
+via `schema.pressure_group_key` — `intended_model_tokens_after_target` for a
+model-tat-targeted grid (Pilot Pass 2), else `requested_tokens_after_target`. This
+matters when per-fact-type calibration gives `requested_tokens_after_target` many
+more distinct values than the grid has levels: grouping on the raw requested lever
+fragments balanced cells and distorts K, the transition width, and the
+monotonicity warnings (Pilot Pass 2 hostile-audit, 2026-09-05). `requested_tokens_
+after_target` remains the provenance / dedup lever. All four arms see byte-identical
+items; trajectories are nested (a lower-pressure distractor block is a prefix of a
+higher-pressure one for the same item/seed).
 
 ### 4.1 Primary question
 

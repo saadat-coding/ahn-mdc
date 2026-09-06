@@ -9,8 +9,12 @@ status: FROZEN
 # `answer_hint` is appended to the prompt so the model returns only the value.
 # Minimal per-type guidance — it must NOT reveal the finite answer set or offer
 # multiple choice (open_decisions.md #7).
+#
+# `construct` is the paper-facing display name (report.fact_type_label). The
+# `fact_type` VALUE in the data / scorer / `chance` map stays as the key below.
 types:
   numerical:
+    construct: numerical ID
     example: "Person_0's employee ID is 100000."
     importance: high
     answer_form: exact_string      # digits; matcher must not accept a near miss
@@ -18,6 +22,7 @@ types:
     h1_prediction: fast degradation — no semantic redundancy to reconstruct from
 
   temporal:
+    construct: temporal order
     example: "Person_0 arrived before Person_1."
     importance: medium
     answer_form: entity
@@ -45,6 +50,7 @@ types:
       target-removed null, not a 0.2 free-response chance — see open_decisions #17.
 
   entity-attribute:
+    construct: entity attribute
     example: "Person_0's favorite color is blue."
     importance: medium
     answer_form: closed_set        # 5 colours -> 20% chance
@@ -52,38 +58,53 @@ types:
     h1_prediction: fast degradation, but chance-corrected
 
   multi-hop:
+    construct: compound relational
     example: "Person_0 manages Person_1. Person_1 works for Google."
     query: which company does Person_0's subordinate work for?
     importance: high
     answer_form: closed_set        # 5 companies
     answer_hint: "Reply with only the company name."
-    h1_prediction: fastest — requires two facts to survive compression, not one
+    h1_prediction: fastest — a two-clause query over one target
+    caveat: >-
+      NOT distributed multi-hop retrieval. The target is a single co-located
+      two-clause sentence ("A manages B. B works for C.") that moves as one span;
+      the query needs both clauses of that one target, not two facts at different
+      positions. Paper-facing name: "compound relational" (report.fact_type_label).
+      Do not describe Pilot Pass 2 / the full run as testing genuine multi-hop
+      reasoning. See protocol/pilot_pass2.md.
 
   contradictory:
+    construct: contradictory update
     example: "Person_0 lived in Paris. Person_0 now lives in London."
     importance: high
     answer_form: closed_set
     answer_hint: "Reply with only the name of the city where they live now."
     h1_prediction: the update should survive; the stale value is the failure mode
     caveat: >-
-      The pilot scores this at 0% under every condition, including in-window,
-      where every other type scores 100%. That pattern is a scoring bug, not
-      degradation — the matcher is likely accepting the first location or
-      rejecting a correct answer. See open_decisions.md #7.
+      The 500-row pilot scored this at 0% (a containment-scoring / constant-gold
+      bug, since fixed — open_decisions.md #7). Pilot Pass 2 (2026-09-05, repaired
+      scorer) supersedes that: ~93% in-window, ~35% pooled for the AHN arms —
+      contradictory now behaves like the other closed-set types.
 
-# Chance accuracy per category, for chance-correcting H1 comparisons. Categories
-# with different chance floors are not directly comparable on raw accuracy.
+# Chance / null baselines — UNRESOLVED (open_decisions.md #17).
 #
-# OPEN DECISION (open_decisions.md #7 / #17): raw accuracy is the PRIMARY H1 metric.
-# The 0.2 values below assume a uniform pick over a 5-item closed set, but entity-
-# attribute / multi-hop / contradictory are free-response questions — the model is
-# never shown the five options, and collision control removes the gold from the
-# visible context, so the true uninformed baseline is unknown and probably < 0.2.
-# `metrics.chance_corrected_accuracy` still uses these; treat its output as
-# indicative only until the baseline is resolved (options A/B/C in the protocol).
+# Raw strict accuracy is the PRIMARY H1 metric. These values are NOT equivalent to
+# each other and must not be pooled:
+#   * temporal 0.5 is a MATHEMATICAL property of a two-alternative forced choice.
+#   * the 0.2 closed-set values are PROVISIONAL and probably wrong — entity-
+#     attribute / multi-hop / contradictory are free-response (the model is never
+#     shown the options; collision control removes the gold from context), so the
+#     true uninformed rate is unknown and likely < 0.2.
+#   * numerical 0.0 — a free-response ID is essentially never guessed.
+#
+# `metrics.chance_corrected_accuracy` reads this block and is DEPRECATED. Prefer
+# `metrics.baseline_adjusted_accuracy(df, baseline)` with an EXPLICIT,
+# provenance-bearing baseline (a scalar, a {fact_type: float} map, or a per-row
+# Series) — it never reads this block. Temporal 0.5, if used, must be passed
+# explicitly and separately from any free-response null.
 chance:
   numerical: 0.0
-  temporal: 0.5
+  temporal: 0.5             # mathematical (2AFC) — NOT comparable to the closed-set values
   entity-attribute: 0.2      # PROVISIONAL — see note above
   multi-hop: 0.2             # PROVISIONAL
   contradictory: 0.2         # PROVISIONAL
