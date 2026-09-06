@@ -1,9 +1,15 @@
 # Pilot Pass 2 — design, gates, analysis, stop conditions
 
 **Owner:** Saadat · **Status:** `COMPLETE + HOSTILE-AUDITED (2026-09-05)`; methodology
-corrections applied; grid/sample-size freeze pending review · **open_decisions:** #18
+corrections applied; **superseded by the frozen final design →
+`protocol/final_experiment_design.md`** · **open_decisions:** #18
 **Depends on:** measurement-coordinate correction (`c3285a6`), temporal repair (`26613ba`),
 H2 methodology correction (`protocol/h2_threshold_decision_2026-09-04.md`)
+
+> The four BLOCKERs below (final grid, seed count, #17, exact-memory control) were
+> all frozen on 2026-09-05 — see `protocol/final_experiment_design.md`,
+> `config/experiment.yaml` `final:`, and `config/final_design_manifest.json`. This
+> document is retained as the plumbing/localization record.
 
 Pilot Pass 2 is a four-arm **plumbing + localization** run on the repaired benchmark
 and the corrected measurement coordinate. It is **not inferential evidence**.

@@ -86,10 +86,17 @@ types:
       scorer) supersedes that: ~93% in-window, ~35% pooled for the AHN arms —
       contradictory now behaves like the other closed-set types.
 
-# Chance / null baselines — UNRESOLVED (open_decisions.md #17).
+# Chance / null baselines — #17 RESOLVED FOR THE INFERENTIAL PROTOCOL (Policy A,
+# 2026-09-05): raw strict production accuracy is the SOLE primary H1/H2 accuracy
+# endpoint; no baseline-adjusted primary, no universal chance correction, no fake
+# 0.2 correction for the free-response types. Temporal also reports
+# answered_valid_accuracy + abstention_rate; explicit baseline_adjusted_accuracy(
+# df, 0.5) for temporal is appendix/sensitivity only. See
+# protocol/final_experiment_design.md §5 and open_decisions.md #17. This block is
+# kept for provenance and for that appendix use — it is NOT read by any primary
+# analysis.
 #
-# Raw strict accuracy is the PRIMARY H1 metric. These values are NOT equivalent to
-# each other and must not be pooled:
+# These values are NOT equivalent to each other and must not be pooled:
 #   * temporal 0.5 is a MATHEMATICAL property of a two-alternative forced choice.
 #   * the 0.2 closed-set values are PROVISIONAL and probably wrong — entity-
 #     attribute / multi-hop / contradictory are free-response (the model is never

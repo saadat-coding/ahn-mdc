@@ -67,7 +67,7 @@ confidence is on a different scale than H3 expects.
 | 6 | **Confidence definition.** Pilot used full-sequence token probability, which penalises long answers: pilot confidences span 1.8e-06 to 0.99. Decide between sequence probability and length-normalised, apply one everywhere. | H3 | Sumiya | `OPEN` |
 | 7 | **Answer matcher per fact type.** ~~Pilot scores `contradictory` at 0% and `temporal` at 90–100%.~~ Root cause was containment scoring + a constant-gold dataset bug. Fixed: constrained short-answer prompt + per-type deterministic canonicalised exact scorer (`evaluate.score_row` / `rescore`), raw generation preserved, `malformed` recorded separately. **Abstention clause reworded 2026-09-03** (see note below) — `not stated above` → `cannot be determined from the statements above`; scorer unchanged. | H1 | Saadat | `DONE` → `evaluate.py`, `config/facts.yaml`, `dataset.py` |
 | 8 | **Fact-type taxonomy frozen** — numerical, temporal, entity-attribute, multi-hop, contradictory (research doc, Table 2). | H1 | Saadat | `DONE` → `config/facts.yaml` |
-| 9 | **Random seeds.** How many, fixed across models and conditions. The pilot has 100 distinct `seed` values but one item each, so there is no replication and every clustered interval comes back empty. | all | Youssef | `BLOCKER` |
+| 9 | **Random seeds.** How many, fixed across models and conditions. | all | Youssef | `DONE (2026-09-05)` — final run uses seeds `[0..7]` fixed across arms and pressures (`config.final()['seeds']`); primary CIs from the item→seed hierarchical bootstrap. |
 | 10 | **Distractor density** defined quantitatively, not as low/high labels. | all | Youssef | `OPEN` |
 | 11 | **`importance` is currently a no-op.** The pilot tags facts high/low but never changes the text, so the variable cannot explain anything. Either manipulate it in the fact wording or drop it. | H1 | Youssef | `OPEN` |
 | 12 | **Architecture configs frozen** — Mamba2 / DeltaNet / GatedDeltaNet matched so architecture is the only difference. Juan approved the frozen **matched inference configuration**: `sliding_window = 256`, `sliding_window_type = fixed`, `ahn_position = prefix`, `num_attn_sinks = 0`. The AHN checkpoints ship training-time values (`sliding_window_type`/`ahn_position` = `random`; DeltaNet also ships stale `dy_sliding_window = 2048`, Mamba2/DeltaNet `dy_num_attn_sinks = 128`) — all read only under `if self.training` in `qwen2_ahn.py`, so inert at inference. `models._force_window` now normalises every loaded config to the frozen values and deletes the stale `dy_*` keys; `models.describe` exposes the three fields so `models.assert_matched` enforces them across arms (`tests/test_matched_config.py`). | H2 | Juan | `DONE` → `config/experiment.yaml`, `src/ahnexp/models.py`, `patches/matched-inference-config.patch` |
@@ -150,7 +150,29 @@ not bias the benchmark (report it, do not remove it). **Temporal is H1 branch A 
 over target-removed at the sampled recurrent pressures. Cross-arm confirmation folds
 into Pilot Pass 2.
 
-### 18. Pilot Pass 2 · `RUN COMPLETE + AUDITED (2026-09-05)`; grid/seed/#17 freeze pending · Saadat
+### 18. Pilot Pass 2 · `DONE (2026-09-05)` — superseded by the frozen final design · Saadat
+
+**Freeze complete (2026-09-05, `saadat-pipeline-validation`).** The four remaining
+BLOCKERs below are all resolved by `protocol/final_experiment_design.md` /
+`config/experiment.yaml` `final:` / `config/final_design_manifest.json`:
+
+- **(a) final grid** — frozen `[150, 180, 205, 220, 235, 250, 265, 285, 315, 380,
+  520, 760]` model-tat, derived from architecture geometry (W=256, max span 17,
+  max_new_tokens 12), NOT from Pilot Pass 2 knees. Transition interval `[200, 270]`.
+- **(b) seeds** — `[0..7]` (8), fixed across arms and pressures. Resolves #9.
+- **(c) control** — per-fact-type benchmark-control validity on the pooled control
+  anchors (intended 150 + 180), floor-only (`full_run.control_validity`,
+  `acceptance.control_validity`); applies the spirit of #5a.
+- **(d) #17** — resolved FOR THIS INFERENTIAL PROTOCOL (Policy A), see #17 below.
+
+n_items = 240 (48/type; n_temporal 48 → 2×2×2 ×6). Hierarchical (item→seed) cluster
+bootstrap is the primary resampler (`stats.hierarchical_bootstrap`); the seed-only
+bootstrap is kept for robustness. `scripts/full_run_dryrun.py` builds
+`config/final_calibration.json` (all 60 type×target cells within tolerance, 2026-09-05).
+
+---
+
+### 18-history. Pilot Pass 2 · `RUN COMPLETE + AUDITED (2026-09-05)`
 
 **Run:** 1,760 rows (4 arms × 40 items × 11 targets × seed 0). Pipeline / provenance /
 scorer / trajectories / all four architectures (incl. the `mamba_ssm` `a096b91`
@@ -222,7 +244,20 @@ pooling hid temporal's 25–50% in-window failure. Approval checklist in
 | 14 | Full evaluation set size; all tables must use the same underlying set. | Saadat | `OPEN` |
 | 15 | Abstention detection — "I don't know" is not the same as retrieving the wrong thing. Pilot does not measure it. | Sumiya | `OPEN` |
 | 16 | Second-stage validation on LongBench / LongBench v2, if the synthetic effect holds. | team | `OPEN` |
-| 17 | **Chance baseline for the closed-set fact types.** `chance = 0.2` for entity-attribute / multi-hop / contradictory assumes a uniform pick over 5 options, but these are free-response — the model is never shown the options, and collision control removes the gold from the visible context, so the true uninformed rate is unknown and probably < 0.2. **Raw accuracy is the primary H1 metric**; `metrics.chance_corrected_accuracy` output is indicative only until resolved. Options: (A) keep 0.2 with an operational definition; (B) make it explicit 5-way multiple choice; (C) keep free response and measure a null (target-removed) baseline. Not resolved here; do not run the null experiment yet. | H1 | Saadat / team | `OPEN` |
+| 17 | **Chance baseline for the closed-set fact types.** `chance = 0.2` for entity-attribute / multi-hop / contradictory assumes a uniform pick over 5 options, but these are free-response — the model is never shown the options, and collision control removes the gold from the visible context, so the true uninformed rate is unknown and probably < 0.2. | H1 | Saadat / team | `RESOLVED FOR THE INFERENTIAL PROTOCOL (2026-09-05) — Policy A` |
+
+**#17 — Policy A (frozen for the final inferential run; does NOT claim the general
+free-response-null problem is theoretically solved).** Raw strict production accuracy
+is the *sole* primary H1/H2 accuracy endpoint. No baseline-adjusted primary; no
+universal chance correction; free-response types get no fake 0.2 correction.
+Temporal stays raw strict in primary analyses and *additionally* reports
+`answered_valid_accuracy` and `abstention_rate`; an explicit
+`baseline_adjusted_accuracy(..., 0.5)` for temporal is appendix/sensitivity only.
+Target-removed / forced-answer diagnostics remain construct-validation evidence
+only. `metrics.chance_corrected_accuracy` stays deprecated;
+`metrics.baseline_adjusted_accuracy(df, baseline)` takes an explicit baseline and
+never reads a universal value. Implemented in `full_run.analyse`
+(`summary["issue_17"]`).
 
 ---
 
