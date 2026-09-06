@@ -1,0 +1,89 @@
+{
+  "generated_by": "scripts/full_run_dryrun.py --manifest",
+  "generated_on": "2026-09-06T01:23:57+00:00",
+  "git_commit_at_generation": "006eeb9323483e8fd7dcb949e099f3b85e244548",
+  "note": "The authoritative frozen commit is the freeze commit that adds/updates this file; git_commit_at_generation is the pre-write baseline.",
+  "analysis_version": "1.0",
+  "scorer_version": "1.0",
+  "window_W": 256,
+  "n_items": 240,
+  "items_per_fact_type": 48,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "arms": [
+    "transformer",
+    "mamba2",
+    "deltanet",
+    "gated_deltanet"
+  ],
+  "target_model_tat_grid": [
+    150,
+    180,
+    205,
+    220,
+    235,
+    250,
+    265,
+    285,
+    315,
+    380,
+    520,
+    760
+  ],
+  "bands": {
+    "control": [
+      150,
+      180
+    ],
+    "transition": [
+      205,
+      220,
+      235,
+      250,
+      265,
+      285
+    ],
+    "recurrent": [
+      315,
+      380,
+      520,
+      760
+    ]
+  },
+  "transition_interval": [
+    200,
+    270
+  ],
+  "h1_transition_targets": [
+    205,
+    220,
+    235,
+    250,
+    265
+  ],
+  "control_anchors": [
+    150,
+    180
+  ],
+  "recurrent_from": 315,
+  "h3_signal_margin": 16,
+  "prompt_sha256": "5a67ce6919c923c80e2b60cb85fbb4e96d07229553ac9e3dcf853a7da02a3aa9",
+  "calibration_sha256": "f6338e476f7c7175cc36be0341bff3d27111804284895df074c817ccaab58ef5",
+  "calibration_within_tolerance": true,
+  "fact_type_construct": {
+    "numerical": "numerical ID",
+    "temporal": "temporal order",
+    "entity-attribute": "entity attribute",
+    "multi-hop": "compound relational",
+    "contradictory": "contradictory update"
+  },
+  "expected_generations": 92160
+}

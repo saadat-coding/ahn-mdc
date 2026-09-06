@@ -56,7 +56,8 @@ def _frame(shape: dict[str, str], seeds=(0, 1)):
 class TestTransitionBand(unittest.TestCase):
     def test_default_band_derives_from_window(self):
         df = _frame({"numerical": "sharp"})
-        self.assertEqual(h1_degradation.transition_band(df), (256 - 76, 256 + 34))
+        # geometry: round5(W - 2*(span_max + gen_max)), round5(W + gen_max) -> (200, 270)
+        self.assertEqual(h1_degradation.transition_band(df), (200, 270))
 
     def test_sharp_transition_has_steeper_drop_than_gradual(self):
         df = _frame({"numerical": "sharp", "temporal": "gradual"})

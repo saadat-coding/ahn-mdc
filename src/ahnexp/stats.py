@@ -88,6 +88,67 @@ def bootstrap_statistic(
     return float(np.quantile(values, alpha)), float(np.quantile(values, 1.0 - alpha))
 
 
+def hierarchical_bootstrap(
+    df: pd.DataFrame,
+    statistic,
+    *,
+    item_col: str = "item_id",
+    seed_col: str = "seed",
+    n_resamples: int | None = None,
+    ci: float | None = None,
+    random_state: int = 0,
+) -> dict:
+    """Two-level cluster bootstrap — the PRIMARY inferential resampler for the final run.
+
+    Resample ``item_col`` clusters with replacement, then resample ``seed_col``
+    realisations with replacement *within* each sampled item. ``statistic`` maps the
+    reassembled frame -> float; matched architecture x pressure rows travel with
+    their (item, seed) unit, so a paired contrast stays paired.
+
+    Returns ``{point, ci_low, ci_high, n_items, n_resamples}``. With < 2 item
+    clusters the CI is NaN (nothing to resample across).
+    """
+    cfg = settings()
+    n_resamples = int(n_resamples if n_resamples is not None else cfg["n_resamples"])
+    ci = float(ci if ci is not None else cfg["ci"])
+
+    df = df.reset_index(drop=True)
+    point = float(statistic(df))
+
+    items = df[item_col].to_numpy()
+    unique_items = np.unique(items)
+    if len(unique_items) < 2:
+        return {"point": point, "ci_low": float("nan"), "ci_high": float("nan"),
+                "n_items": int(len(unique_items)), "n_resamples": 0}
+
+    # item -> list of row-index arrays, one per seed realisation
+    by_item: dict = {}
+    for item_value, sub in df.groupby(item_col, sort=False):
+        by_item[item_value] = [g.index.to_numpy() for _, g in sub.groupby(seed_col, sort=False)]
+
+    rng = np.random.default_rng(random_state)
+    values = np.empty(n_resamples)
+    for b in range(n_resamples):
+        picks = unique_items[rng.integers(0, len(unique_items), size=len(unique_items))]
+        chunks = []
+        for item_value in picks:
+            seed_groups = by_item[item_value]
+            k = len(seed_groups)
+            for j in rng.integers(0, k, size=k):
+                chunks.append(seed_groups[j])
+        rows = np.concatenate(chunks)
+        values[b] = statistic(df.loc[rows])
+
+    alpha = (1.0 - ci) / 2.0
+    return {
+        "point": point,
+        "ci_low": float(np.quantile(values, alpha)),
+        "ci_high": float(np.quantile(values, 1.0 - alpha)),
+        "n_items": int(len(unique_items)),
+        "n_resamples": n_resamples,
+    }
+
+
 def paired_difference(
     df: pd.DataFrame,
     arm_a: str,

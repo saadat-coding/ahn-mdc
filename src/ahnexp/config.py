@@ -128,6 +128,60 @@ def load_pass2_calibration() -> dict[str, Any]:
     return json.loads(path.read_text())
 
 
+def final() -> dict[str, Any]:
+    """Frozen final inferential design block (protocol/final_experiment_design.md)."""
+    return experiment()["final"]
+
+
+def load_final_calibration() -> dict[str, Any]:
+    """Per-fact-type requested->model-tat calibration for the final grid."""
+    import json
+
+    path = project_root() / final()["calibration_file"]
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path} not found. Run scripts/full_run_dryrun.py first "
+            "(no model; needs the Qwen2.5 tokenizer)."
+        )
+    return json.loads(path.read_text())
+
+
+def final_manifest() -> dict[str, Any]:
+    """The frozen-design manifest/hash (config/final_design_manifest.json)."""
+    import json
+
+    path = project_root() / final()["manifest_file"]
+    if not path.is_file():
+        raise FileNotFoundError(
+            f"{path} not found. Run scripts/full_run_dryrun.py --manifest."
+        )
+    return json.loads(path.read_text())
+
+
+def prompt_hash() -> str:
+    """SHA-256 over the frozen prompt template + per-type answer hints.
+
+    The manifest pins this so a silent edit to `dataset._PROMPT` or a
+    `config/facts.yaml` `answer_hint` is caught before the final run.
+    """
+    import hashlib
+
+    from ahnexp import dataset  # local import: dataset imports config
+
+    hints = facts()["types"]
+    payload = dataset._PROMPT + "\x1e" + "\x1e".join(
+        f"{name}:{entry.get('answer_hint', '')}" for name, entry in sorted(hints.items())
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def file_sha256(relative_path: str) -> str:
+    """SHA-256 of a repo file, for manifest integrity checks."""
+    import hashlib
+
+    return hashlib.sha256((project_root() / relative_path).read_bytes()).hexdigest()
+
+
 def output_path(key: str, mode: str = "pilot") -> Path:
     """Resolve `outputs.raw`, substituting the run-mode suffix."""
     template = experiment()["outputs"][key]

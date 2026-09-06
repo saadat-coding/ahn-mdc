@@ -210,6 +210,114 @@ def malformed_report(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("pressure_group").reset_index(drop=True)
 
 
+def behavioral_signaling(df: pd.DataFrame, margin: int | None = None,
+                         n_resamples: int | None = None) -> dict:
+    """H3 behavioral primary (protocol/final_experiment_design.md).
+
+    "Does behavioral uncertainty signaling track retrieval failure as memory
+    pressure increases?" Over rows with ``model_tokens_after_target >= W + margin``
+    (default ``config.final()['h3_signal_margin']`` = 16):
+
+      * ``appropriate_abstention_rate`` = P(abstained)
+      * ``unsignalled_failure_rate``    = P(wrong-valid OR malformed)
+        (wrong-valid = answered, not malformed, ``correct == 0``)
+
+    Per architecture, plus each AHN arm vs transformer (hierarchical bootstrap,
+    Holm within this family). No "the model knows its memory is gone" phrasing —
+    this is uncertainty / failure *signaling*.
+    """
+    schema.validate(df, needs=("core", "h3"))
+    fcfg = config.final()
+    margin = int(fcfg["h3_signal_margin"] if margin is None else margin)
+    w = int(df["sliding_window"].iloc[0])
+    coord = schema.pressure_coordinate(df)
+    region = df[df[coord] >= w + margin].copy()
+    if region.empty:
+        return {"region": f"model_tat >= {w + margin}", "n": 0,
+                "per_arm": pd.DataFrame(), "contrasts": pd.DataFrame()}
+
+    has_malf = "malformed" in region.columns
+    region["_unsignalled"] = (
+        ((region["abstained"] == 0) & (region["correct"] == 0)
+         & (~region["malformed"].astype(bool) if has_malf else True))
+        | (region["malformed"].astype(bool) if has_malf else False)
+    ).astype(int)
+
+    per_arm = []
+    for arm, g in region.groupby("architecture"):
+        per_arm.append({
+            "architecture": arm, "n": int(len(g)),
+            "appropriate_abstention_rate": float(g["abstained"].mean()),
+            "unsignalled_failure_rate": float(g["_unsignalled"].mean()),
+        })
+    per_arm_df = pd.DataFrame(per_arm)
+
+    contrasts = []
+    p_map: dict[str, float] = {}
+    ahn = [a for a in region["architecture"].unique() if a != "transformer"]
+    if "transformer" in set(region["architecture"]):
+        for arm in sorted(ahn):
+            pair = region[region["architecture"].isin([arm, "transformer"])]
+            for metric_col in ("abstained", "_unsignalled"):
+                stat = (lambda mc: lambda f: (f.loc[f["architecture"] == arm, mc].mean()
+                                              - f.loc[f["architecture"] == "transformer", mc].mean()))(metric_col)
+                boot = stats.hierarchical_bootstrap(pair, stat, n_resamples=n_resamples)
+                p = _two_sided_boot_p(pair, stat, n_resamples)
+                name = f"{arm}-transformer:{'abstention' if metric_col == 'abstained' else 'unsignalled'}"
+                p_map[name] = p
+                contrasts.append({"contrast": name, "diff": boot["point"],
+                                  "ci_low": boot["ci_low"], "ci_high": boot["ci_high"], "p_approx": p})
+    adj = stats.holm_adjust(p_map) if p_map else {}
+    for row in contrasts:
+        row["p_holm"] = adj.get(row["contrast"], float("nan"))
+
+    return {"region": f"model_tat >= {w + margin}", "n": int(len(region)),
+            "per_arm": per_arm_df, "contrasts": pd.DataFrame(contrasts)}
+
+
+def _two_sided_boot_p(frame: pd.DataFrame, statistic, n_resamples: int | None = None) -> float:
+    from ahnexp.h1_degradation import _boot_p
+
+    return _boot_p(frame, statistic, n_resamples)
+
+
+def gap_change(df: pd.DataFrame, interval: tuple[int, int] | None = None,
+               control_anchors=None, n_resamples: int | None = None) -> pd.DataFrame:
+    """Secondary calibration primary test: change in the confidence-minus-accuracy
+    gap (answered_valid only) from the pooled control anchors to the transition
+    interval, per architecture, with a hierarchical-bootstrap CI.
+    """
+    fcfg = config.final()
+    interval = tuple(interval or fcfg["transition_interval"])
+    control_anchors = list(control_anchors or fcfg["control_anchors"])
+    key = schema.pressure_group_key(df)
+    av = _pop(df, "answered_valid").copy()
+    av["_region"] = np.where(av[key].isin(control_anchors), "control",
+                             np.where(av[key].between(*interval), "interval", "other"))
+    scoped = av[av["_region"].isin(["control", "interval"])]
+
+    def gap_delta(f: pd.DataFrame) -> float:
+        ctrl = f[f["_region"] == "control"]
+        intr = f[f["_region"] == "interval"]
+        if not len(ctrl) or not len(intr):
+            return float("nan")
+        g_ctrl = float(ctrl["confidence"].mean() - ctrl["correct"].mean())
+        g_intr = float(intr["confidence"].mean() - intr["correct"].mean())
+        return g_intr - g_ctrl
+
+    rows = []
+    for arm, g in scoped.groupby("architecture"):
+        boot = stats.hierarchical_bootstrap(g, gap_delta, n_resamples=n_resamples)
+        ctrl, intr = g[g["_region"] == "control"], g[g["_region"] == "interval"]
+        rows.append({
+            "architecture": arm,
+            "gap_control": float(ctrl["confidence"].mean() - ctrl["correct"].mean()) if len(ctrl) else np.nan,
+            "gap_interval": float(intr["confidence"].mean() - intr["correct"].mean()) if len(intr) else np.nan,
+            "gap_change": boot["point"], "ci_low": boot["ci_low"], "ci_high": boot["ci_high"],
+        })
+    return pd.DataFrame(rows).sort_values("gap_change", ascending=False).reset_index(drop=True)
+
+
 def confidence_health(df: pd.DataFrame) -> pd.DataFrame:
     """Sanity checks on the confidence signal itself, before interpreting calibration.
 

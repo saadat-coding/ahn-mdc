@@ -296,6 +296,116 @@ def knees(df: pd.DataFrame, by: str | None = None) -> pd.DataFrame:
     return pd.DataFrame(rows).reset_index(drop=True)
 
 
+def _iso_transition_width(g: pd.DataFrame, lo_level: float = 0.9, hi_level: float = 0.1) -> float:
+    """0.9->0.1 isotonic strict-accuracy drop width, in model tokens, for one arm's frame."""
+    group_key = schema.pressure_group_key(g)
+    coord = schema.pressure_coordinate(g)
+    cell = g.groupby(group_key).agg(x=(coord, "mean"), acc=("correct", "mean"),
+                                    n=("correct", "size")).reset_index().sort_values("x")
+    if len(cell) < 3:
+        return float("nan")
+    fit = stats.isotonic_regression(cell["acc"], cell["n"].to_numpy(float), increasing=False)
+    x = cell["x"].to_numpy(float)
+    return stats.crossing_x(x, fit, hi_level) - stats.crossing_x(x, fit, lo_level)
+
+
+def _k_strict(g: pd.DataFrame) -> float:
+    group_key = schema.pressure_group_key(g)
+    coord = schema.pressure_coordinate(g)
+    cell = g.groupby(group_key).agg(x=(coord, "mean"), acc=("correct", "mean"),
+                                    n=("correct", "size")).reset_index().sort_values("x")
+    if len(cell) < 3:
+        return float("nan")
+    fit = stats.isotonic_regression(cell["acc"], cell["n"].to_numpy(float), increasing=False)
+    return stats.crossing_x(cell["x"].to_numpy(float), fit, 0.5)
+
+
+def transition_summary(df: pd.DataFrame, interval: tuple[int, int] | None = None,
+                       recurrent_from: int | None = None,
+                       n_resamples: int | None = None) -> dict:
+    """Frozen H2 outputs (protocol/final_experiment_design.md).
+
+      * ``width``       — per-architecture isotonic 90->10 transition width with a
+        hierarchical-bootstrap 95% CI, and a verdict: ``concentrated`` if the CI
+        upper bound < 0.5 W, ``gradual`` if the CI lower bound > W, else
+        ``intermediate``.
+      * ``shape``       — confirmatory smooth vs break-allowed fit with the break
+        fixed at W (AIC / RSS), via ``shape_test(df, threshold_tokens=W)``.
+      * ``a_transition_gap`` — A_transition(AHN pooled) - A_transition(transformer)
+        over the transition interval, hierarchical-bootstrap CI.
+      * ``a_recurrent`` — per-arm mean strict accuracy over intended targets
+        >= ``recurrent_from``, hierarchical-bootstrap CI.
+      * ``k_strict``    — per-arm descriptive K (0.5 crossing) with a CI. Descriptive
+        only — never a threshold hypothesis, and no published T.
+    """
+    schema.validate(df, needs=("core", "h2"))
+    fcfg = config.final()
+    w = int(df["sliding_window"].iloc[0])
+    interval = tuple(interval or fcfg["transition_interval"])
+    recurrent_from = int(recurrent_from or fcfg["recurrent_from"])
+    key = schema.pressure_group_key(df)
+    arms_cfg = config.experiment()["models"]["arms"]
+    ahn_arms = [a for a in df["architecture"].unique()
+                if arms_cfg.get(a, {}).get("ahn_implementation") is not None]
+
+    width_rows = []
+    for arm, g in df.groupby("architecture"):
+        boot = stats.hierarchical_bootstrap(g, _iso_transition_width, n_resamples=n_resamples)
+        lo, hi = boot["ci_low"], boot["ci_high"]
+        verdict = "intermediate"
+        if np.isfinite(hi) and hi < 0.5 * w:
+            verdict = "concentrated"
+        elif np.isfinite(lo) and lo > w:
+            verdict = "gradual"
+        width_rows.append({"architecture": arm, "width_tokens": boot["point"],
+                           "ci_low": lo, "ci_high": hi, "verdict": verdict})
+
+    k_rows = []
+    for arm, g in df.groupby("architecture"):
+        boot = stats.hierarchical_bootstrap(g, _k_strict, n_resamples=n_resamples)
+        k_rows.append({"architecture": arm, "k_strict_acc": boot["point"],
+                       "ci_low": boot["ci_low"], "ci_high": boot["ci_high"]})
+
+    lo_t, hi_t = interval
+    band = df[df[key].between(lo_t, hi_t)]
+    ahn_band = band[band["architecture"].isin(ahn_arms)]
+    txf_band = band[band["architecture"] == "transformer"]
+    if len(ahn_band) and len(txf_band):
+        gap_pool = pd.concat([ahn_band.assign(_grp="ahn"), txf_band.assign(_grp="txf")])
+        gap_boot = stats.hierarchical_bootstrap(
+            gap_pool,
+            lambda f: (f.loc[f["_grp"] == "ahn", "correct"].mean()
+                       - f.loc[f["_grp"] == "txf", "correct"].mean()),
+            n_resamples=n_resamples,
+        )
+    else:
+        gap_boot = {"point": float("nan"), "ci_low": float("nan"), "ci_high": float("nan")}
+
+    rec = df[df[key] >= recurrent_from]
+    a_recurrent = []
+    for arm, g in rec.groupby("architecture"):
+        boot = stats.hierarchical_bootstrap(g, lambda f: f["correct"].mean(), n_resamples=n_resamples)
+        a_recurrent.append({"architecture": arm, "a_recurrent": boot["point"],
+                            "ci_low": boot["ci_low"], "ci_high": boot["ci_high"], "n": int(len(g))})
+
+    try:
+        shape = shape_test(df, threshold_tokens=w)
+    except Exception as exc:  # noqa: BLE001
+        shape = pd.DataFrame([{"architecture": "?", "verdict": f"unavailable: {exc}"}])
+
+    return {
+        "interval": list(interval),
+        "recurrent_from": recurrent_from,
+        "window_W": w,
+        "width": pd.DataFrame(width_rows),
+        "k_strict": pd.DataFrame(k_rows),
+        "shape_break_at_W": shape,
+        "a_transition_gap": {"ahn_pooled_minus_transformer": gap_boot["point"],
+                             "ci_low": gap_boot["ci_low"], "ci_high": gap_boot["ci_high"]},
+        "a_recurrent": pd.DataFrame(a_recurrent),
+    }
+
+
 def architecture_comparisons(df: pd.DataFrame) -> pd.DataFrame:
     """Paired arm-vs-arm gaps under recurrent memory.
 

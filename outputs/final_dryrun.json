@@ -1,0 +1,38 @@
+{
+  "n_items": 240,
+  "search_items_per_type": 24,
+  "targets": [
+    150,
+    180,
+    205,
+    220,
+    235,
+    250,
+    265,
+    285,
+    315,
+    380,
+    520,
+    760
+  ],
+  "seed": 0,
+  "per_type_mean_abs_error": {
+    "contradictory": 7.27,
+    "entity-attribute": 6.92,
+    "multi-hop": 8.53,
+    "numerical": 7.58,
+    "temporal": 7.06
+  },
+  "per_type_max_abs_error": {
+    "contradictory": 29,
+    "entity-attribute": 27,
+    "multi-hop": 26,
+    "numerical": 24,
+    "temporal": 25
+  },
+  "targets_out_of_tolerance": [],
+  "transition_region_ok": true,
+  "all_targets_ok": true,
+  "trajectory_nesting_ok": true,
+  "non_nested_items": []
+}

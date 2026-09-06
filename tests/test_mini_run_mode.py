@@ -63,7 +63,9 @@ class TestMiniRunMode(unittest.TestCase):
         self.assertIs(p["include_threshold"], True)
         self.assertEqual(self.exp["models"]["sliding_window"]["force"], 256)
         self.assertEqual(config.run_mode("pilot")["n_items"], 10)
-        self.assertEqual(config.run_mode("full")["seeds"], [0, 1, 2, 3, 4])
+        # `full` is the frozen inferential run: 240 items, 8 seeds (config.final())
+        self.assertEqual(config.run_mode("full")["seeds"], [0, 1, 2, 3, 4, 5, 6, 7])
+        self.assertEqual(config.run_mode("full")["n_items"], 240)
         cal = self.exp["calibration"]
         self.assertEqual(cal["confidence"], "sequence_probability")
         self.assertEqual(cal["cwr_threshold"], 0.5)

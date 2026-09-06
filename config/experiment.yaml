@@ -123,6 +123,44 @@ pilot_pass2:
   arms: [transformer, mamba2, deltanet, gated_deltanet]
 
 # ---------------------------------------------------------------------------
+# Final inferential experiment — FROZEN 2026-09-05
+# ---------------------------------------------------------------------------
+# See protocol/final_experiment_design.md and config/final_design_manifest.json.
+# Model-tat-targeted grid specified directly in `model_tokens_after_target` (the
+# canonical scientific pressure coordinate). The grid and the transition interval
+# were frozen from ARCHITECTURE GEOMETRY (W = 256, max tokenised target span 17,
+# max_new_tokens 12), NOT tuned to Pilot Pass 2 effect sizes. Pilot Pass 2's
+# observed knees are explicitly NOT the basis for any boundary here.
+# scripts/full_run_dryrun.py builds config/final_calibration.json (no model);
+# scripts/run_full.py always passes an explicit pressure_plan, so `run_modes.full`
+# `grid` is inert for this run (kept only for the legacy pressure_levels smoke path).
+final:
+  status: FROZEN
+  frozen_on: 2026-09-05
+  coordinate: model_tokens_after_target
+  window_reference: 256                  # W — architectural, never a predicted break
+  #   control anchors 150 180 | transition 205 220 235 250 265 285 | recurrent 315 380 520 760
+  target_model_tat: [150, 180, 205, 220, 235, 250, 265, 285, 315, 380, 520, 760]
+  bands:
+    control:    [150, 180]
+    transition: [205, 220, 235, 250, 265, 285]
+    recurrent:  [315, 380, 520, 760]
+  control_anchors: [150, 180]            # primary benchmark-control = pooled intended 150 + 180
+  transition_interval: [200, 270]        # pre-registered architectural / measurement region
+  h1_transition_targets: [205, 220, 235, 250, 265]   # A_transition levels (3 AHN arms pooled)
+  recurrent_from: 315                    # A_recurrent = mean strict accuracy over intended targets >= this
+  h3_signal_margin: 16                   # H3 behavioral primary computed at model_tat >= W + this
+  calibration_file: config/final_calibration.json
+  calibration_tolerance_transition: 12   # model tokens, |realised - intended| over intended 200-285
+  calibration_tolerance_other: 25
+  calibration_items_per_type: 24         # items used to SEARCH requested tokens; realised verified on all
+  arms: [transformer, mamba2, deltanet, gated_deltanet]
+  seeds: [0, 1, 2, 3, 4, 5, 6, 7]
+  n_items: 240                           # 48 per fact type; n_temporal 48 -> 2x2x2 x6
+  analysis_version: "1.0"
+  manifest_file: config/final_design_manifest.json
+
+# ---------------------------------------------------------------------------
 # H2 threshold T — DEPRECATED (2026-09-04)
 # ---------------------------------------------------------------------------
 # The `50 facts x 15.37 = 768` derivation is retired. The "50" was attributed to
@@ -158,8 +196,10 @@ threshold:
 # Design
 # ---------------------------------------------------------------------------
 design:
-  # Same items, same prompts, replayed across every arm and pressure level.
-  matching_key: [item_id, tokens_after_target, seed]
+  # Same items, same prompts, replayed across every arm and pressure level. For the
+  # model-tat-targeted final grid the scientific matching key is the intended target
+  # (schema.pressure_group_key); `tokens_after_target` is realised, per-item jittered.
+  matching_key: [item_id, intended_model_tokens_after_target, seed]
   state_reset: per_trajectory      # independent forward pass; probes must not contaminate
   require_complete_grid: true
 
@@ -193,8 +233,14 @@ run_modes:
     hardware: gpu                  # Colab L4
     suffix: _pass2
   full:
-    n_items: 500                   # sufficient for interpreting ECE
-    seeds: [0, 1, 2, 3, 4]
+    purpose: >-
+      FROZEN inferential experiment (protocol/final_experiment_design.md). The
+      pressure grid is model-tat targeted via config/final_calibration.json —
+      scripts/run_full.py always passes an explicit pressure_plan, so `grid` below
+      is inert for this run and kept only for the legacy evaluate.pressure_levels
+      smoke path.
+    n_items: 240                   # 48 per fact type; n_temporal 48 -> 2x2x2 x6 (config.final())
+    seeds: [0, 1, 2, 3, 4, 5, 6, 7]
     grid: grid
     hardware: a40
     suffix: ""
@@ -206,7 +252,15 @@ statistics:
   # Items recur across arms and pressures, so trials are clustered. Resampling
   # trials would report intervals that are far too tight.
   bootstrap: cluster
-  cluster_on: seed
+  cluster_on: seed                  # legacy seed-only bootstrap — robustness / sensitivity only
+  # PRIMARY inferential resampling for the final run (stats.hierarchical_bootstrap):
+  # a 2-level cluster bootstrap. Resample item_id clusters with replacement, then
+  # resample seed realisations within each sampled item; matched architecture x
+  # pressure observations travel with their (item, seed) unit so paired contrasts
+  # stay paired. Holm correction within each hypothesis family.
+  resampling: hierarchical
+  primary_cluster: item_id
+  secondary_cluster: seed
   n_resamples: 2000
   ci: 0.95
   paired: true                     # same items across arms
@@ -227,9 +281,30 @@ acceptance:
     defensible: [0.70, 0.80]
     acceptable_max: 0.85
     red_flag_at: 0.90              # task already solved by existing models
+  # LEGACY keys — NOT read by any code (report.gate_report computes gates directly;
+  # the final run uses full_run.plumbing_gates). Retained only as documentation of
+  # the retired T-based acceptance criteria.
   require_threshold_locked: true
   require_threshold_clears_window: true
   require_matched_design: true
+
+  # Final-run per-fact-type benchmark-control validity (full_run.control_validity),
+  # evaluated on the pooled control anchors (intended model-tat 150 + 180). Spirit
+  # of open_decisions #5a: a per-type retrievability FLOOR only — no upper-bound /
+  # red-flag gate on a high valid control accuracy. A non-temporal type that FAILs
+  # is reported benchmark-invalid and excluded from the H1 primary.
+  control_validity:
+    non_temporal:
+      pass_strict: 0.85            # strict production accuracy >= -> PASS
+      warn_strict: 0.70            # [0.70, 0.85) -> WARNING
+      warn_malformed: 0.05         # malformed rate > this -> WARNING
+      warn_abstention: 0.10        # abstention rate > this -> WARNING
+      fail_strict: 0.70            # < this -> FAIL (excluded from H1 primary)
+    temporal:
+      pass_answered_valid: 0.85    # answered_valid accuracy >= -> PASS
+      warn_abstention: [0.40, 0.60]  # abstention in this range -> WARNING
+      fail_answered_valid: 0.70
+      fail_abstention: 0.60
 
 outputs:
   raw: outputs/results{suffix}.parquet
@@ -248,3 +323,13 @@ outputs:
   pass2_h3: outputs/pilot_pass2_h3
   pass2_knees: outputs/pilot_pass2_knees
   pass2_dryrun: outputs/pilot_pass2_dryrun.json
+
+  # Final inferential run (protocol/final_experiment_design.md)
+  final_raw: outputs/results.parquet
+  final_summary: outputs/final_summary.json
+  final_items: outputs/final_items.json
+  final_h1: outputs/final_h1
+  final_h2: outputs/final_h2
+  final_h3: outputs/final_h3
+  final_control: outputs/final_control_validity
+  final_dryrun: outputs/final_dryrun.json

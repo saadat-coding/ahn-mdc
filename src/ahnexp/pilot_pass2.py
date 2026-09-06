@@ -123,11 +123,17 @@ def verify_grid(
     return pd.DataFrame(rows)
 
 
-def calibration_report(verify: pd.DataFrame, bands: dict[str, list[int]]) -> pd.DataFrame:
+def calibration_report(verify: pd.DataFrame, bands: dict[str, list[int]],
+                       tolerances: dict | None = None) -> pd.DataFrame:
     """Per-(fact_type, intended target): median realised model-tat and error, plus
     whether the band tolerance is met (median across items, the runner uses one
-    requested per (type, target))."""
-    p2 = config.pilot_pass2()
+    requested per (type, target)).
+
+    `tolerances` (defaults to `config.pilot_pass2()`) must carry
+    `calibration_tolerance_transition` / `calibration_tolerance_other`; pass
+    `config.final()` for the final grid.
+    """
+    p2 = tolerances or config.pilot_pass2()
     tol_transition = int(p2["calibration_tolerance_transition"])
     tol_other = int(p2["calibration_tolerance_other"])
     transition = set(bands["transition"])
