@@ -213,6 +213,28 @@ def pressure_levels(sliding_window: int, mode: str = "pilot") -> list[int]:
     return sorted(levels)
 
 
+def cell_identity(architecture: str, item_id: str, seed: int,
+                  intended_or_requested: int) -> tuple[str, str, int, int]:
+    """The canonical unique experimental-cell key.
+
+    `(architecture, item_id, seed, intended_model_tokens_after_target)` — the same
+    tuple `schema.validate` / `full_run.plumbing_gates` dedup on. For a
+    window-multiple grid (no `pressure_plan`, `intended` is None) the requested
+    level stands in. Each cell is fully reproducible from these four values alone:
+    `dataset.build_trajectory` seeds a fresh `random.Random(seed)` per call and
+    decoding is greedy, so nothing depends on iteration order.
+    """
+    return (str(architecture), str(item_id), int(seed), int(intended_or_requested))
+
+
+def _finalize_frame(records: list[dict[str, Any]]) -> pd.DataFrame:
+    """Records -> the schema frame (memory condition, boundary flags, scorer tag)."""
+    df = schema.derive_memory_condition(pd.DataFrame(records))
+    df = schema.derive_boundary_conditions(df, strict=True)
+    df["scorer_version"] = SCORER_VERSION
+    return df
+
+
 def run_grid(
     items: Iterable[dataset.Item],
     tokenizer_for_items,
@@ -221,6 +243,9 @@ def run_grid(
     arms: list[str] | None = None,
     length_matched: bool = False,
     pressure_plan: dict[str, dict[int, int]] | None = None,
+    seeds: list[int] | None = None,
+    skip_cells: set[tuple[str, str, int, int]] | None = None,
+    on_chunk=None,
 ) -> pd.DataFrame:
     """Replay the same items across every arm, at every pressure level.
 
@@ -232,10 +257,21 @@ def run_grid(
     the per-fact-type `requested_tokens` and the record carries
     `intended_model_tokens_after_target` (the model-tat level it was calibrated to
     hit). Incompatible with `length_matched`.
+
+    Resumability (execution only — no effect on scientific content):
+      * `seeds`      — override the run-mode seed list (e.g. resume a subset).
+      * `skip_cells` — a set of `cell_identity(...)` tuples already persisted; those
+        cells are not regenerated. Iteration order over the remaining cells is
+        unchanged.
+      * `on_chunk(architecture, seed, frame_or_None)` — called after every
+        `(arm, seed)` chunk finishes, with the finalized frame for the newly
+        generated rows of that chunk (or None if every cell was skipped). The
+        caller persists it (see `full_run.checkpoint_merge`). An interrupted run
+        keeps every chunk checkpointed before it.
     """
     items = list(items)
     arms = arms or models.list_arms()
-    seeds = config.run_mode(mode)["seeds"]
+    seeds = list(config.run_mode(mode)["seeds"] if seeds is None else seeds)
     # None → config.ahn_repo() (AHN_REPO / Colab / vendor/AHN)
     resolved_repo = config.ahn_repo(ahn_repo) if ahn_repo is not None else None
 
@@ -253,10 +289,16 @@ def run_grid(
         budget = max(pressure_levels(window, mode)) if length_matched else 0
 
         for seed in seeds:
+            chunk_records: list[dict[str, Any]] = []
             for item in items:
                 for requested, intended in _trajectory_schedule(
                     item, window, mode, pressure_plan
                 ):
+                    if skip_cells is not None and cell_identity(
+                        name, item.item_id, seed,
+                        intended if intended is not None else requested,
+                    ) in skip_cells:
+                        continue
                     trajectory = dataset.build_trajectory(
                         item,
                         tokenizer,
@@ -281,17 +323,21 @@ def run_grid(
                     record.update(
                         score_row(record["prediction"], record["gold"], record["fact_type"])
                     )
-                    records.append(record)
+                    chunk_records.append(record)
+
+            records.extend(chunk_records)
+            if on_chunk is not None:
+                on_chunk(name, int(seed),
+                         _finalize_frame(chunk_records) if chunk_records else None)
 
         del model, tokenizer
         gc.collect()
         _empty_cuda_cache()
 
     models.assert_matched(descriptions)
-    df = schema.derive_memory_condition(pd.DataFrame(records))
-    df = schema.derive_boundary_conditions(df, strict=True)
-    df["scorer_version"] = SCORER_VERSION
-    return schema.validate(df, needs=("core", "h1", "h3"))
+    if not records:
+        return schema.empty_frame()
+    return schema.validate(_finalize_frame(records), needs=("core", "h1", "h3"))
 
 
 def _empty_cuda_cache() -> None:

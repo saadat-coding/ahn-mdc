@@ -29,7 +29,9 @@ problem is theoretically solved.
 from __future__ import annotations
 
 import json
+import os
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +74,211 @@ def expected_trials(n_arms: int | None = None) -> int:
 
 def verify_grid(items, tokenizer, plan=None, seed: int = 0) -> pd.DataFrame:
     return pilot_pass2.verify_grid(items, tokenizer, plan or pressure_plan(), seed=seed)
+
+
+# ---------------------------------------------------------------------------
+# Resumable staged execution (persistence repair — NOT a scientific change)
+# ---------------------------------------------------------------------------
+#
+# The canonical unique experimental-cell key. Every one of the 92,160 frozen cells
+# is fully reproducible from these four values: dataset.build_trajectory seeds a
+# fresh random.Random(seed) per call and decoding is greedy, so a cell's content
+# never depends on iteration order. Resuming at cell (or seed) granularity is
+# therefore identical to an uninterrupted run.
+CELL_KEY = ["architecture", "item_id", "seed", "intended_model_tokens_after_target"]
+
+# Columns that must agree when the same cell appears twice (prev + regenerated).
+_OUTCOME_COLS = ("correct", "abstained", "malformed", "answer_canonical",
+                 "prediction", "gold", "confidence", "n_new_tokens",
+                 "model_tokens_after_target", "scorer_version")
+
+
+def _read_cell_frame(raw_path: Path) -> pd.DataFrame:
+    if not Path(raw_path).exists():
+        return pd.DataFrame(columns=CELL_KEY)
+    return pd.read_parquet(raw_path, columns=CELL_KEY)
+
+
+def completed_cells(raw_path: Path) -> set[tuple[str, str, int, int]]:
+    """The set of `(architecture, item_id, seed, intended_model_tat)` already persisted."""
+    df = _read_cell_frame(raw_path)
+    return {
+        (str(a), str(i), int(s), int(t))
+        for a, i, s, t in df.itertuples(index=False, name=None)
+    }
+
+
+_FROZEN_ITEM_IDS: set[str] | None = None
+
+
+def frozen_item_ids() -> set[str]:
+    """The item_ids of the frozen 240-item set (memoised)."""
+    global _FROZEN_ITEM_IDS
+    if _FROZEN_ITEM_IDS is None:
+        fcfg = config.final()
+        _FROZEN_ITEM_IDS = {
+            it.item_id for it in dataset.generate_items(int(fcfg["n_items"]),
+                                                        seed=int(fcfg["seeds"][0]))
+        }
+    return _FROZEN_ITEM_IDS
+
+
+def assert_compatible_with_frozen_design(df: pd.DataFrame, *, allow_incomplete: bool = True) -> None:
+    """Fail loudly if any persisted row is not a valid frozen-design cell, or if a
+    cell is duplicated. Does not require completeness unless `allow_incomplete` is
+    False (then the full 92,160-cell design must be present exactly once each)."""
+    if df.empty:
+        return
+    fcfg = config.final()
+    valid_items = frozen_item_ids()
+    problems: list[str] = []
+    missing_cols = [c for c in CELL_KEY if c not in df.columns]
+    if missing_cols:
+        raise SystemExit(f"FROZEN-DESIGN CONFLICT: artifact is missing cell-key columns {missing_cols}")
+
+    bad_arch = sorted(set(df["architecture"]) - set(fcfg["arms"]))
+    bad_seed = sorted(set(int(s) for s in df["seed"]) - set(int(s) for s in fcfg["seeds"]))
+    bad_tgt = sorted(set(int(t) for t in df["intended_model_tokens_after_target"])
+                     - set(int(t) for t in fcfg["target_model_tat"]))
+    bad_item = sorted(set(df["item_id"]) - valid_items)
+    if bad_arch:
+        problems.append(f"unknown architectures {bad_arch}")
+    if bad_seed:
+        problems.append(f"unknown seeds {bad_seed}")
+    if bad_tgt:
+        problems.append(f"unknown intended targets {bad_tgt}")
+    if bad_item:
+        problems.append(f"{len(bad_item)} item_ids not in the frozen 240-item set (e.g. {bad_item[:3]})")
+
+    dup = df.duplicated(subset=CELL_KEY)
+    if dup.any():
+        sample = df.loc[dup, CELL_KEY].head(3).to_dict("records")
+        problems.append(f"{int(dup.sum())} duplicated cells (e.g. {sample})")
+
+    if not allow_incomplete:
+        expected = expected_trials()
+        if len(df) != expected:
+            problems.append(f"{len(df)} rows, expected exactly {expected}")
+
+    if problems:
+        raise SystemExit("FROZEN-DESIGN CONFLICT:\n  - " + "\n  - ".join(problems))
+
+
+def _assert_no_conflicting_dupes(merged: pd.DataFrame) -> None:
+    """Same cell twice with a different scored outcome => stop (non-determinism or a
+    silent design change). Identical duplicates are fine and get collapsed."""
+    dup_mask = merged.duplicated(subset=CELL_KEY, keep=False)
+    if not dup_mask.any():
+        return
+    cols = [c for c in _OUTCOME_COLS if c in merged.columns]
+    conflicts = []
+    for key, grp in merged.loc[dup_mask].groupby(CELL_KEY):
+        if grp[cols].astype(str).nunique().gt(1).any():
+            conflicts.append(dict(zip(CELL_KEY, key)))
+    if conflicts:
+        raise SystemExit(
+            "CONFLICTING DUPLICATE CELLS (same cell, different result — refusing to "
+            f"merge):\n  - " + "\n  - ".join(str(c) for c in conflicts[:5])
+        )
+
+
+def design_progress(df: pd.DataFrame) -> dict[str, Any]:
+    """Per-arm completed-cell counts and whether the full frozen design is present."""
+    fcfg = config.final()
+    per_arm_target = int(fcfg["n_items"]) * len(fcfg["target_model_tat"]) * len(fcfg["seeds"])
+    per_seed_target = int(fcfg["n_items"]) * len(fcfg["target_model_tat"])
+    counts, seeds_done = {}, {}
+    for arm in fcfg["arms"]:
+        sub = df[df["architecture"] == arm] if not df.empty else df
+        n = int(len(sub.drop_duplicates(subset=CELL_KEY))) if len(sub) else 0
+        counts[arm] = n
+        seeds_done[arm] = sorted(
+            int(s) for s in (sub["seed"].unique() if len(sub) else [])
+            if len(sub[sub["seed"] == s].drop_duplicates(subset=CELL_KEY)) == per_seed_target
+        )
+    total = int(len(df.drop_duplicates(subset=CELL_KEY))) if not df.empty else 0
+    complete = (total == expected_trials()
+                and all(counts[a] == per_arm_target for a in fcfg["arms"]))
+    return {"per_arm_cells": counts, "per_arm_target": per_arm_target,
+            "seeds_complete": seeds_done, "total_cells": total,
+            "expected_total": expected_trials(), "complete": complete}
+
+
+def checkpoint_merge(new_rows: pd.DataFrame | None, raw_path: Path,
+                     *, architecture: str | None = None, seed: int | None = None,
+                     verbose: bool = True) -> pd.DataFrame:
+    """Merge `new_rows` into `raw_path` atomically, preserving every previously
+    completed architecture, deduplicating ONLY on `CELL_KEY`.
+
+      1. read the existing artifact (if any); require identical columns
+      2. concat; fail loudly on a conflicting duplicate cell; collapse exact dups
+      3. validate every row against the frozen design (known arm/item/seed/target,
+         no dup cells)
+      4. write a temp parquet, re-read + validate it, then os.replace() into place
+         (a crash mid-write cannot corrupt the existing artifact)
+      5. print an explicit CHECKPOINT SAVED block and flush stdout
+
+    Returns the merged frame.
+    """
+    raw_path = Path(raw_path)
+    raw_path.parent.mkdir(parents=True, exist_ok=True)
+
+    nothing_new = new_rows is None or not len(new_rows)
+    if nothing_new and raw_path.exists():
+        # a fully-skipped chunk on restart — do not rewrite the artifact
+        merged = pd.read_parquet(raw_path)
+        if verbose:
+            _print_checkpoint(merged, architecture, seed, skipped=True)
+        return merged
+
+    if raw_path.exists():
+        prev = pd.read_parquet(raw_path)
+        if new_rows is not None and len(new_rows):
+            if set(prev.columns) != set(new_rows.columns):
+                only_prev = sorted(set(prev.columns) - set(new_rows.columns))
+                only_new = sorted(set(new_rows.columns) - set(prev.columns))
+                raise SystemExit(
+                    "COLUMN MISMATCH between the existing artifact and the new rows "
+                    f"(prev-only {only_prev}, new-only {only_new}). The existing "
+                    "artifact was not produced by the current frozen code — refusing to merge."
+                )
+            merged = pd.concat([prev, new_rows[prev.columns]], ignore_index=True)
+        else:
+            merged = prev.copy()
+    else:
+        merged = (new_rows.copy() if new_rows is not None and len(new_rows)
+                  else pd.DataFrame(columns=CELL_KEY))
+
+    _assert_no_conflicting_dupes(merged)
+    merged = merged.drop_duplicates(subset=CELL_KEY, keep="first").reset_index(drop=True)
+    assert_compatible_with_frozen_design(merged)
+
+    tmp = raw_path.with_name(raw_path.name + ".tmp")
+    merged.to_parquet(tmp, index=False)
+    check = pd.read_parquet(tmp)
+    if len(check) != len(merged) or set(check.columns) != set(merged.columns) \
+            or check.duplicated(subset=CELL_KEY).any():
+        tmp.unlink(missing_ok=True)
+        raise SystemExit("ATOMIC WRITE VALIDATION FAILED — temp parquet is not a "
+                         "faithful copy; existing artifact left untouched.")
+    os.replace(tmp, raw_path)
+
+    if verbose:
+        _print_checkpoint(merged, architecture, seed, skipped=False)
+    return merged
+
+
+def _print_checkpoint(merged: pd.DataFrame, architecture: str | None,
+                      seed: int | None, *, skipped: bool) -> None:
+    prog = design_progress(merged)
+    arm = architecture or "?"
+    print("\nCHECKPOINT SAVED" + ("  (no new rows — chunk already complete)" if skipped else ""))
+    if architecture:
+        note = f"  (just wrote seed {seed})" if seed is not None and not skipped else ""
+        print(f"{arm} completed seeds: {prog['seeds_complete'].get(arm, [])}{note}")
+        print(f"{arm} rows: {prog['per_arm_cells'].get(arm, 0)} / {prog['per_arm_target']}")
+    print(f"total rows: {prog['total_cells']} / {prog['expected_total']}")
+    sys.stdout.flush()
 
 
 # ---------------------------------------------------------------------------

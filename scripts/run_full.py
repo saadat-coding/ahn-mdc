@@ -218,27 +218,57 @@ def main() -> None:
     if ahn_repo:
         os.environ["AHN_REPO"] = ahn_repo
 
-    banner(f"Final run — arms={arms}  ({len(items)} items x {len(fcfg['target_model_tat'])} targets "
-           f"x {len(fcfg['seeds'])} seeds)")
-    dataset.save_items(items, root / config.experiment()["outputs"]["final_items"],
-                       seed=int(fcfg["seeds"][0]))
-    df = evaluate.run_grid(items, None, ahn_repo=ahn_repo, mode=MODE, arms=arms, pressure_plan=plan)
+    import pandas as pd
 
     raw = root / config.experiment()["outputs"]["final_raw"]
-    if raw.exists() and args.arms:
-        import pandas as pd
-        prev = pd.read_parquet(raw)
-        df = pd.concat([prev[~prev["architecture"].isin(arms)], df], ignore_index=True)
-    df.to_parquet(raw, index=False)
-    print(f"\nwrote {raw}  ({len(df)} trials)")
+    dataset.save_items(items, root / config.experiment()["outputs"]["final_items"],
+                       seed=int(fcfg["seeds"][0]))
 
-    full = df["architecture"].nunique() == len(fcfg["arms"])
-    passed = _analyse_and_gate(root, df, items, calibration, verify)
-    if full and not passed:
+    # --- resume: inspect the existing artifact, skip cells already persisted -----
+    if raw.exists():
+        existing = pd.read_parquet(raw)
+        full_run.assert_compatible_with_frozen_design(existing)
+        done = full_run.completed_cells(raw)
+    else:
+        existing, done = pd.DataFrame(), set()
+    skip = {c for c in done if c[0] in set(arms)}
+    per_arm_cells = 240 * 12 * 8
+    banner(f"Final run — arms={arms}  (resumable, one seed / {240 * 12} cells per checkpoint)")
+    for arm in arms:
+        have = sum(1 for c in skip if c[0] == arm)
+        print(f"  {arm}: {have} / {per_arm_cells} cells already persisted "
+              f"-> {per_arm_cells - have} to generate")
+    other = sorted({c[0] for c in done} - set(arms))
+    if other:
+        print(f"  preserved (not regenerated): {other}")
+
+    def _checkpoint(architecture, seed, chunk_frame):
+        full_run.checkpoint_merge(chunk_frame, raw, architecture=architecture, seed=seed)
+
+    df_new = evaluate.run_grid(items, None, ahn_repo=ahn_repo, mode=MODE, arms=arms,
+                               pressure_plan=plan, skip_cells=skip, on_chunk=_checkpoint)
+    # checkpoints already persisted every chunk; if nothing was pending, still
+    # re-emit the artifact status so a no-op restart is legible.
+    if raw.exists() and not len(df_new):
+        full_run.checkpoint_merge(None, raw, architecture=arms[0] if len(arms) == 1 else None)
+    merged = pd.read_parquet(raw)
+    print(f"\nartifact: {raw}  ({len(merged)} / {full_run.expected_trials()} rows)")
+
+    # --- gates + frozen analysis wait until all four arms are complete ----------
+    prog = full_run.design_progress(merged)
+    if not prog["complete"]:
+        banner("staged run — analysis deferred")
+        for arm, n in prog["per_arm_cells"].items():
+            print(f"  {arm}: {n} / {prog['per_arm_target']} cells"
+                  f"  (complete seeds {prog['seeds_complete'][arm]})")
+        print("\n  H1/H2/H3 gates + analysis run only when all four complete "
+              "architectures are present.")
+        return
+
+    banner("all four architectures complete — running gates + frozen analysis")
+    passed = _analyse_and_gate(root, merged, items, calibration, verify)
+    if not passed:
         raise SystemExit(1)
-    if not full:
-        print(f"\n  staged run ({df['architecture'].nunique()}/{len(fcfg['arms'])} arms) — "
-              "gates + analysis re-evaluated when all arms are present.")
 
 
 if __name__ == "__main__":
