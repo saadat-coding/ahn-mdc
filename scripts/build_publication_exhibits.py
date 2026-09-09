@@ -107,13 +107,14 @@ class Builder:
         return name
 
     def add(self, *, eid, title, kind, placement, claim_ids, sources, source_tables,
-            files, statistic, post_freeze=None, notes=None):
+            files, statistic, post_freeze=None, notes=None, caption=None):
         entry = {
             "exhibit_id": eid, "title": title, "kind": kind, "placement": placement,
             "claim_ids": claim_ids, "scripts": ["scripts/build_publication_exhibits.py"],
             "source_files": sources, "source_tables": source_tables,
             "raw_artifact_sha256": RAW_SHA256, "analysis_versions": ["1.0", "1.1"],
             "post_freeze_status": post_freeze, "statistic_definitions": statistic,
+            "caption": caption or "",
             "generated_files": {f: sha(self.out / ("main" if placement == "MAIN" else
                                 "appendix" if placement == "APPENDIX" else "source_tables") / f)
                                 for f in files if (self.out / ("main" if placement == "MAIN" else
@@ -182,6 +183,7 @@ class Builder:
                      "= 92,160 trials", fontsize=9)
         f = self._fig(fig, "figD_experimental_design", "main")
         self.add(eid="figD_experimental_design",
+                 caption="Top: schematic of one tokenised evaluation trajectory. A distractor context precedes the target span (median 15.5 tokens); model_tokens_after_target counts every token after the target span (distractors, the question and instruction, and the chat-template suffix) and is the pressure coordinate. W = 256 is the architectural sliding-window reference. Bottom: the 12 frozen intended pressure targets (grouping key, x-axis) against the realised model_tokens_after_target they produced (median and inter-quartile range over n = 7,680 trials per level); per-fact-type filler was calibrated with the base tokenizer so that realised closely tracks intended. Two targets fall in the control band, six in the transition band, four in the recurrent band. The full grid is 4 architectures x 240 items x 12 targets x 8 seeds = 92,160 trials.",
                  title="Experimental design / memory-pressure setup",
                  kind="figure", placement="MAIN", claim_ids=["(design)"],
                  sources=[RAW], source_tables=[st], files=[f, st],
@@ -213,10 +215,14 @@ class Builder:
         st2 = self._src("fig1_h1_a_transition.csv", at)
 
         plt = self.plt
-        fig, ax = plt.subplots(figsize=(6.8, 4.2), constrained_layout=True)
+        fig, ax = plt.subplots(figsize=(6.8, 4.3), constrained_layout=True)
+        ax.set_ylim(-0.03, 1.03)
         ax.axvspan(202, 267, color="#ededed", zorder=0)
-        ax.text(234, 0.30, "A$_{transition}$\nregion\n(intended\n205–265)", ha="center", va="center",
-                fontsize=6.4, color="#555555")
+        # A_transition-region label as a bracket ABOVE the plot area (no overprint)
+        ax.annotate("", xy=(202, 1.045), xytext=(267, 1.045), annotation_clip=False,
+                    arrowprops=dict(arrowstyle="-", color="#888888", lw=1))
+        ax.text(234.5, 1.06, "A$_{transition}$ region (intended targets 205–265)",
+                ha="center", va="bottom", fontsize=6.8, color="#555555", clip_on=False)
         for ft in FT_ORDER:
             s = cur[cur.fact_type == ft].sort_values("realised_model_tat_median")
             ax.plot(s.realised_model_tat_median, s.strict_accuracy, "-o", ms=3.6, lw=1.5,
@@ -225,11 +231,10 @@ class Builder:
         ax.text(W + 8, 0.62, "W = 256\n(architectural window)", fontsize=7)
         ax.set_xlabel("realised model_tokens_after_target  (median per intended level)")
         ax.set_ylabel("strict production accuracy\n(3 AHN arms pooled; n = 5,760 / point)")
-        ax.set_ylim(-0.03, 1.03)
         ax.legend(loc="upper right", frameon=False, ncol=1, fontsize=7.5)
         ax.set_title("Figure 1 — Fact types degrade non-uniformly in task accuracy\n"
                      "(label-permutation omnibus on the 5 A$_{transition}$ means: p = 5×10$^{-4}$, 0/2000)",
-                     fontsize=9)
+                     fontsize=9, pad=16)
         f = self._fig(fig, "fig1_h1_nonuniform_degradation", "main")
         self.add(eid="fig1_h1_nonuniform_degradation",
                  title="H1: non-uniform degradation across information types",
@@ -240,6 +245,17 @@ class Builder:
                             "[205,220,235,250,265], AHN arms pooled (h1_degradation.a_transition)",
                             "omnibus": "label-permutation on the SD of the five A_transition means, "
                             "2000 permutations (h1_degradation.a_transition_omnibus)"},
+                 caption="Strict production accuracy versus realised model_tokens_after_target for "
+                 "each fact type, pooled over the three AHN architectures (n = 5,760 per point). "
+                 "The y-axis is end-to-end task accuracy under the strict production metric: a trial "
+                 "counts as correct only if the model emits exactly the gold value, so abstentions "
+                 "(“I don't know”) and malformed outputs both count as failures. Curves are raw "
+                 "cell means (no fit). W = 256 is the architectural sliding-window reference, not a "
+                 "threshold. The shaded region marks the intended targets (205–265) averaged for "
+                 "A_transition. The five-way spread of A_transition means exceeds label-permutation "
+                 "chance (p = 5×10⁻⁴, 0/2000). The ordering is partly metric-dependent: under "
+                 "answered-valid accuracy it compresses (Table 1, Appendix A-H1). Internal data key "
+                 "“multi-hop” is reported as “compound-relational”.",
                  notes=["y-axis is task accuracy and includes abstention — NOT 'information retained'.",
                         "internal key 'multi-hop' shown as 'compound-relational'.",
                         "answered-valid ordering (Table 1) is less separated — the ordering is not metric-independent."])
@@ -275,6 +291,7 @@ class Builder:
                               "Answered-valid column is a FROZEN SECONDARY sensitivity (all types), not a replacement.",
                               "#17 Policy A: no chance-corrected primary."])
         self.add(eid="tbl1_h1_primary", title="H1 primary result", kind="table", placement="MAIN",
+                 caption="H1 primary endpoint. A_transition is the mean strict production accuracy over the five intended transition targets (205-265), pooled over the three AHN architectures (n = 5,760 per fact type). Raw strict accuracy is the pre-registered primary metric (no chance correction). The answered-valid column (accuracy computed only over trials that produced a parseable answer) is a pre-registered secondary sensitivity, shown for context, not a replacement. In-window control columns are pooled over intended targets 150 and 180 (n = 3,072 per fact type). The label-permutation omnibus on the dispersion of the five A_transition means gives p = 5x10^-4 (0/2000 permutations).",
                  claim_ids=["H1-1", "H1-2"],
                  sources=["final_audit/FINAL_LOCKED/final_h1_h1_a_transition.csv",
                           "final_audit/FINAL_LOCKED/final_control_validity_control_validity.csv", RAW],
@@ -301,6 +318,7 @@ class Builder:
                               "10/10 contrasts Holm-significant. Closest to threshold: compound-relational vs temporal, p_holm 0.037.",
                               "H1 supported iff ≥1 Holm-adjusted CI excludes 0 (frozen criterion)."])
         self.add(eid="tbl2_h1_contrasts", title="H1 pairwise contrasts", kind="table", placement="MAIN",
+                 caption="All ten pairwise fact-type differences in A_transition, with 95% hierarchical (item then seed) cluster-bootstrap intervals (2,000 resamples) and Holm-adjusted two-sided bootstrap p-values over the ten-comparison family. All ten intervals exclude zero; the closest to the boundary is compound-relational versus temporal (p_holm = 0.037).",
                  claim_ids=["H1-1"], sources=["final_audit/FINAL_LOCKED/final_h1_h1_contrasts.csv"],
                  source_tables=[st], files=[md, st],
                  statistic={"diff": "A_transition(a) − A_transition(b)", "ci95": "percentile 95% hierarchical bootstrap",
@@ -330,24 +348,26 @@ class Builder:
             a0.plot(s.model_tokens_after_target, s.accuracy, "-o", ms=3.4, lw=1.6,
                     color=ARM_COLOR[arm], label=ARM_LABEL[arm], zorder=3)
             a0.fill_between(s.model_tokens_after_target, s.ci_low, s.ci_high, color=ARM_COLOR[arm], alpha=.12)
-        # K markers on a dedicated strip just below the axis (visually distinct from W)
-        for i, arm in enumerate(ARMS):
-            y = -0.11 - 0.055 * i
-            a0.plot([k.loc[arm, "ci_low"], k.loc[arm, "ci_high"]], [y, y], color=ARM_COLOR[arm], lw=3, alpha=.5,
-                    clip_on=False)
-            a0.scatter([k.loc[arm, "k_strict_acc"]], [y], color=ARM_COLOR[arm], marker="D", s=16,
-                       clip_on=False, zorder=5)
-        a0.text(132, -0.11, "empirical knee K\n(◇ point, 95% CI bar):", fontsize=6.4, va="center", ha="right")
         self._pressure_axis(a0)
-        a0.text(W + 6, 0.86, "W = 256\narchitectural\nwindow", fontsize=6.8)
-        a0.text(305, 0.62, f"A$_{{transition}}$ gap\n(AHN − Transformer, [200,270])\n"
+        a0.set_ylim(-0.03, 1.03)
+        # empirical knee K: one CI bar + diamond per arm, stacked INSIDE the panel near y=0
+        for i, arm in enumerate(ARMS):
+            y = 0.045 + 0.055 * (len(ARMS) - 1 - i)
+            a0.plot([k.loc[arm, "ci_low"], k.loc[arm, "ci_high"]], [y, y], color=ARM_COLOR[arm],
+                    lw=3, alpha=.55, zorder=4)
+            a0.scatter([k.loc[arm, "k_strict_acc"]], [y], color=ARM_COLOR[arm], marker="D", s=18, zorder=5)
+        a0.text(132, 0.20, "empirical knee K\n(◆ = point, bar = 95% CI;\nnote every K < W)",
+                fontsize=6.2, va="top", ha="left")
+        a0.axvline(W, color="k", ls="--", lw=1.3, zorder=6)  # redraw W over the K strip
+        a0.text(W + 6, 0.86, "W = 256\narchitectural\nwindow\n(not a threshold)", fontsize=6.6)
+        a0.text(300, 0.60, f"A$_{{transition}}$ gap\n(AHN − Transformer, [200,270])\n"
                 f"= +{gap['ahn_pooled_minus_transformer']:.2f} [{gap['ci_low']:.2f}, {gap['ci_high']:.2f}]",
                 ha="left", fontsize=6.6, bbox=dict(boxstyle="round", fc="white", ec="#cccccc", lw=.6))
         a0.set_ylabel("strict production accuracy\n(n = 1,920 / point; 95% CI band)")
-        a0.set_ylim(-0.03, 1.03)
         a0.legend(loc="upper right", frameon=False, fontsize=7.5)
-        a0.set_title("Figure 2 — Architecture degradation curves: every empirical knee K sits BELOW W;\n"
-                     "past W all four architectures collapse to ≈ 0 (A$_{recurrent}$ ≈ 0)", fontsize=8.8)
+        a0.set_title("Figure 2 — Architecture degradation curves: every empirical knee K sits BELOW\n"
+                     "the sliding-window reference W; past W all four collapse to ≈ 0 (A$_{recurrent}$ ≈ 0)",
+                     fontsize=8.6)
         for arm in ARMS:
             s = ab[ab.architecture == arm].sort_values("x")
             a1.plot(s.x, s.abst, "-o", ms=3.2, lw=1.4, color=ARM_COLOR[arm])
@@ -368,7 +388,20 @@ class Builder:
                             "W": "architectural sliding-window boundary = 256",
                             "A_transition gap": "A_transition(AHN pooled) − A_transition(transformer) over [200,270]"},
                  post_freeze=None,
-                 notes=["W and K are visually distinct (dashed vertical line vs ▼ markers with CI bars).",
+                 caption="Top: strict production accuracy versus realised model_tokens_after_target for "
+                 "each architecture (n = 1,920 per point; 95% bootstrap CI band). The vertical dashed "
+                 "line is the architectural sliding-window reference W = 256. The diamonds with "
+                 "horizontal bars near the axis floor are the empirical performance knee K per "
+                 "architecture (isotonic 0.5-crossing of pooled strict accuracy; 95% hierarchical "
+                 "bootstrap CI) — a descriptive location, not a threshold, and distinct from W. Every "
+                 "K (208–240) lies below W. In the near-window band [200, 270] the AHN architectures "
+                 "retain +0.25 more accuracy than the no-recurrent-memory baseline (95% CI "
+                 "[0.23, 0.27]). Past W all four architectures fall to ≈ 0 (A_recurrent ≈ 0; Table 3). "
+                 "Bottom: abstention rate over all trials, same x-axis. The pre-registered pooled "
+                 "transition-width statistic was mathematically undefined for this dataset and is not "
+                 "shown (Table 3; Appendix A-H2a).",
+                 notes=["W and K are visually distinct: W is a dashed vertical line; K is a per-arm "
+                        "diamond + CI bar near the axis floor, inside the accuracy panel.",
                         "the frozen pooled transition-width statistic is UNDEFINED and is deliberately omitted here "
                         "(see Table 3 footnote and Appendix A-H2a).",
                         "no implication that AHN retains information past W (A_recurrent ≈ 0; Table 3, Table 5)."])
@@ -407,6 +440,7 @@ class Builder:
                            "shape vs smooth: piecewise fit with break fixed at W = 256, AIC comparison (frozen v1.0).",
                            "K_abstention recomputed from the locked parquet with frozen h2_threshold.knees."])
         self.add(eid="tbl3_h2_summary", title="H2 architecture summary", kind="table", placement="MAIN",
+                 caption="Per-architecture H2 summary. K_strict and K_abstention are the isotonic 0.5-crossings of pooled strict accuracy and of abstention rate against realised model_tokens_after_target; they are descriptive empirical knees, not thresholds, and are distinct from the architectural reference W = 256. Every K_strict lies below W. shape_vs_smooth compares a smooth log-linear fit with a fit allowed to change slope at W, by AIC (negative delta favours the change-point fit). A_recurrent is the mean strict accuracy over intended targets >= 315 with a 95% bootstrap interval. The A_transition gap (AHN pooled minus baseline) over [200, 270] is +0.249 [0.233, 0.266]. The pre-registered pooled 90-to-10 transition-width statistic was mathematically undefined for this dataset and is not reported here (Appendix A-H2a).",
                  claim_ids=["H2-1", "H2-2", "H2-4", "H2-5"],
                  sources=[RAW, "final_audit/FINAL_LOCKED/final_h2_h2_k_strict.csv",
                           "final_audit/FINAL_LOCKED/final_h2_h2_shape_break_at_W.csv",
@@ -484,7 +518,21 @@ class Builder:
                  source_tables=[st1, st2, st3], files=[f, st1, st2, st3],
                  statistic={"appropriate_abstention_rate": "P(abstained | model_tat ≥ W+16)",
                             "unsignalled_failure_rate": "P((wrong valid) ∨ malformed | model_tat ≥ W+16)"},
+                 caption="Behaviour on trials past the sliding-window reference (realised "
+                 "model_tokens_after_target ≥ W + 16 = 272; n ≈ 10,091 per architecture). Left: the "
+                 "four mutually exclusive per-trial outcomes — correct factual answer, incorrect valid "
+                 "answer, malformed output, abstention (“I don't know”) — as stacked fractions. "
+                 "Correct factual answers are below 1% for every architecture in this region (maximum "
+                 "0.37%, Transformer), so the correct segment is not visible; essentially no "
+                 "architecture retrieves the target past the window. Right: the two frozen H3 "
+                 "behavioural-primary rates per architecture — appropriate abstention rate = "
+                 "P(abstained), and unsignalled failure rate = P(incorrect-valid ∨ malformed). Each "
+                 "AHN architecture differs from the no-recurrent-memory baseline by |Δ| ≈ 0.42 "
+                 "(all six contrasts Holm-adjusted p ≈ 0; the ordering is identical in all 8 seeds). "
+                 "This is a description of behaviour; it does not identify an internal mechanism.",
                  notes=["four outcomes shown separately: correct / incorrect-valid / malformed / abstention.",
+                        "correct factual answers are < 1% for every arm past W+16 (max 0.37%); the green "
+                        "segment is present in the source table but too small to render.",
                         "no mechanistic claim — 'signalling', not 'the model knows it forgot' (H3-4 is a PROHIBITED claim).",
                         "factual calibration is a separate story (Appendix A-H3)."])
 
@@ -518,6 +566,7 @@ class Builder:
                            "property (documented, counterbalanced response bias — Appendix A-VAL).",
                            "control anchors = pooled intended model-tat 150 + 180; n = 3,072 / type."])
         self.add(eid="tbl4_construct_control", title="Construct / control-validity table",
+                 caption="Fact-type constructs and in-window (control) retrieval, pooled over intended targets 150 and 180 (n = 3,072 per fact type). compound-relational (internal data key multi-hop) is a single co-located two-clause sentence with a query that needs both clauses; it is not a benchmark of multi-hop reasoning across separated facts. Its control retrieval reaches only 0.842 (0.951 among answered trials; 0.115 abstention), which triggers a pre-registered WARNING (strict < 0.85 and abstention > 0.10); the FAIL threshold of 0.70 was not reached, so the type is retained in the H1 primary. temporal is judged on answered-valid accuracy (0.922) with abstention (0.384) tracked separately.",
                  kind="table", placement="MAIN", claim_ids=["VAL-1", "VAL-2"],
                  sources=["final_audit/FINAL_LOCKED/final_control_validity_control_validity.csv", "config/facts.yaml"],
                  source_tables=[st], files=[md, st],
@@ -544,6 +593,7 @@ class Builder:
                            "Do NOT state 'AHN recurrent memory stores nothing'. The mamba2 result is 1 correct / 3,542.",
                            "Source: v1.1 reporting-amendment (reporting_amendment.deep_recurrent_retention)."])
         self.add(eid="tbl5_deep_recurrent", title="Deep-recurrent negative-retention result",
+                 caption="Retrieval at deep recurrent pressure: realised model_tokens_after_target >= 512 (twice W), n = 3,542 per architecture. Correct counts are 0 (DeltaNet, GatedDeltaNet), 1 (Mamba2), and 3 (baseline); Wilson 95% upper bounds are at or below 0.25%. Abstention exceeds 89% for all four. No measurable target-specific factual retention was observed at deep recurrent pressure under the production evaluation.",
                  kind="table", placement="MAIN", claim_ids=["H2-5"],
                  sources=[f"{V11}/sensitivity__deep_recurrent_retention__per_arm.csv", RAW],
                  source_tables=[st], files=[md, st],
@@ -781,6 +831,19 @@ class Builder:
             "exhibits": self.exhibits,
         }
         (self.out / "EXHIBIT_MANIFEST.json").write_text(json.dumps(manifest, indent=2) + "\n")
+        cap_lines = ["# Publication Exhibit Captions",
+                     "",
+                     "Draft captions for each exhibit. Every number traces to the exhibit's source "
+                     "table(s) (see EXHIBIT_MANIFEST.json). Terminology: internal data key "
+                     "\"multi-hop\" is reported as \"compound-relational\".", ""]
+        for e in self.exhibits:
+            cap_lines.append(f"## {e['exhibit_id']}  ({e['placement']})")
+            cap_lines.append(f"*{e['title']}* — claims: {', '.join(e['claim_ids'])}"
+                             + (f" — {e['post_freeze_status']}" if e.get('post_freeze_status') else ""))
+            cap_lines.append("")
+            cap_lines.append(e["caption"] or "(caption in exhibit notes)")
+            cap_lines.append("")
+        (self.out / "CAPTIONS.md").write_text("\n".join(cap_lines) + "\n")
         print(f"main: {manifest['n_main']}  appendix: {manifest['n_appendix']}")
         for e in self.exhibits:
             print(f"  [{e['placement']:8}] {e['exhibit_id']:42} {e['kind']}")

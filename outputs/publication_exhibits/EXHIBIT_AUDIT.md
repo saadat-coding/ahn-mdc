@@ -16,12 +16,12 @@ separated · 7 CI/stat annotations correct · 8 H2 v1.1 amendment disclosed ·
 | exhibit | verdict | notes |
 |---|---|---|
 | **figD_experimental_design** | **PASS** | (1) grid + realised medians reproduce from parquet. (5) W drawn as a dashed line labelled "architectural sliding-window boundary (not a threshold)"; no K on this figure. (10) low risk — the intended-vs-realised panel makes the calibration explicit. |
-| **fig1_h1_nonuniform_degradation** | **WARN** (cosmetic) | (1)(2)(7) A_transition values == frozen `final_h1_h1_a_transition.csv`; curve points reproduce from the parquet; omnibus p = 5×10⁻⁴ == `final_summary.json`. (3) "compound-relational" in the legend; internal `multi-hop` preserved in `fig1_h1_curves.csv`. (4) y-axis is "strict production accuracy" not "information retained" — a caption sentence to that effect is REQUIRED (in the exhibit `notes`). (5) W dashed line, no K. (6) abstention is not on this figure (accuracy only) — the shared story is in Fig 2 / Fig 3. (9) all 5 fact types shown, none omitted. (10) the shaded "A_transition region" label is partly overprinted by curves — a manuscript-time layout tweak; not misleading. |
+| **fig1_h1_nonuniform_degradation** | **PASS** (cosmetic WARN resolved) | (1)(2)(7) A_transition values == frozen `final_h1_h1_a_transition.csv`; curve points reproduce from the parquet; omnibus p = 5×10⁻⁴ == `final_summary.json`. (3) "compound-relational" in the legend; internal `multi-hop` preserved in `fig1_h1_curves.csv`. (4) y-axis is "strict production accuracy" not "information retained" — a caption sentence to that effect is REQUIRED (in the exhibit `notes`). (5) W dashed line, no K. (6) abstention is not on this figure (accuracy only) — the shared story is in Fig 2 / Fig 3. (9) all 5 fact types shown, none omitted. (10) the shaded "A_transition region" label is partly overprinted by curves — a manuscript-time layout tweak; not misleading. |
 | **tbl1_h1_primary** | **PASS** | (1) raw-strict A_transition + control columns == frozen; `A_transition_answered_valid` is recomputed from the locked parquet with frozen `h1_degradation.a_transition(value='answered_valid')` and is internally consistent with the frozen answered-valid contrasts (Δ match to 1e-3). (2) H1-1 / H1-2. (4) footnotes state raw strict is the frozen primary (Policy A) and the answered-valid column is a FROZEN SECONDARY sensitivity, not a replacement. (9) all 5 rows. |
 | **tbl2_h1_contrasts** | **PASS** | (1) byte-identical to `final_h1_h1_contrasts.csv`. (7) annotation states hierarchical item→seed bootstrap, 2000 resamples, Holm over 10; the borderline row (compound-relational vs temporal, p_holm 0.037) is disclosed, not hidden. (9) all 10 contrasts. |
-| **fig2_h2_architecture_curves** | **WARN** (cosmetic) | (1) accuracy curves == `final_h2_h2_curves.csv`; abstention reproduces from the parquet; K == `final_h2_h2_k_strict.csv`; gap == `final_summary.json`. (5) **W and K are distinct**: W is a black dashed vertical line; K is a diamond marker per arm on a horizontal CI strip below the accuracy panel — programmatic check confirms every K point < W. (4) the frozen pooled transition-width / "intermediate" label is deliberately ABSENT; a note points to Table 3 + Appendix A-H2a. No implication of retention past W (bottom panel + "A_recurrent ≈ 0" in the title). (10) the K strip sits between the two panels and could be mistaken for a third axis — a manuscript-time tweak (move it into the accuracy panel or a clear inset); the science is right. |
+| **fig2_h2_architecture_curves** | **PASS** (cosmetic WARN resolved) | (1) accuracy curves == `final_h2_h2_curves.csv`; abstention reproduces from the parquet; K == `final_h2_h2_k_strict.csv`; gap == `final_summary.json`. (5) **W and K are distinct**: W is a black dashed vertical line; K is a diamond marker per arm on a horizontal CI strip below the accuracy panel — programmatic check confirms every K point < W. (4) the frozen pooled transition-width / "intermediate" label is deliberately ABSENT; a note points to Table 3 + Appendix A-H2a. No implication of retention past W (bottom panel + "A_recurrent ≈ 0" in the title). (10) the K strip sits between the two panels and could be mistaken for a third axis — a manuscript-time tweak (move it into the accuracy panel or a clear inset); the science is right. |
 | **tbl3_h2_summary** | **PASS** | (1) K_strict / shape / A_recurrent == frozen; K_abstention recomputed from the parquet with frozen `h2_threshold.knees`; gap == `final_summary.json`. (5) footnote: "K is a DESCRIPTIVE empirical knee … NOT a threshold; W = 256 is the architectural window. Every K < W." (8) footnote discloses the pooled-width statistic is UNDEFINED and points to the amendment; the frozen "intermediate" verdict column is NOT included. (4) no prohibited implication. |
-| **fig3_h3_behavioural_signalling** | **WARN** (caption) | (1) per-arm rates == `final_h3_h3_behavioral_per_arm.csv`; outcome composition reproduces from the parquet; the composition "abstained" fraction equals the frozen `appropriate_abstention_rate` for every arm (programmatic check). (6) **four outcomes are shown separately** — correct / incorrect-valid / malformed / abstention. (4) title says "abstains … answers or degenerates" — behavioural, no mechanism; H3-4 mechanism claim is not made. (7) contrast annotation "p_holm = 0, |Δ| ≈ 0.42, identical across 8 seeds" == `final_h3_h3_behavioral_contrasts.csv` + `robustness__per_seed_headline__*`. (10) the green "correct factual answer" segment is invisible in the bars because it is < 1 % for every arm past the window — a caption line stating this is REQUIRED so a reviewer does not think the category was dropped. |
+| **fig3_h3_behavioural_signalling** | **PASS** (caption added) | (1) per-arm rates == `final_h3_h3_behavioral_per_arm.csv`; outcome composition reproduces from the parquet; the composition "abstained" fraction equals the frozen `appropriate_abstention_rate` for every arm (programmatic check). (6) **four outcomes are shown separately** — correct / incorrect-valid / malformed / abstention. (4) title says "abstains … answers or degenerates" — behavioural, no mechanism; H3-4 mechanism claim is not made. (7) contrast annotation "p_holm = 0, |Δ| ≈ 0.42, identical across 8 seeds" == `final_h3_h3_behavioral_contrasts.csv` + `robustness__per_seed_headline__*`. (10) the green "correct factual answer" segment is invisible in the bars because it is < 1 % for every arm past the window — a caption line stating this is REQUIRED so a reviewer does not think the category was dropped. |
 | **tbl4_construct_control** | **PASS** | (1) in-window strict/answered-valid/abstention/malformed == `final_control_validity_control_validity.csv`; example/answer_form from `config/facts.yaml`. (3) compound-relational labelled; note states it is "a single co-located two-clause target — NOT multi-hop retrieval across separated facts". (2) VAL-1, VAL-2. (7) WARNING driver spelled out (strict 0.842 < 0.85 AND abstention 0.115 > 0.10; FAIL 0.70 not reached → retained in H1). |
 | **tbl5_deep_recurrent** | **PASS** | (1) == v1.1 `sensitivity__deep_recurrent_retention__per_arm.csv`; deep correct counts (mamba2 1, deltanet 0, gated_deltanet 0) reproduce from the parquet. (6) shows n, strict_correct, strict_accuracy, **Wilson-95 low/high** (never a bare "0"), abstention, wrong-valid n — programmatic check confirms the Wilson columns are present and bracket the point. (2) approved wording verbatim in the note: "No measurable target-specific factual retention …"; and "Do NOT state 'AHN recurrent memory stores nothing'." (9) all 3 AHN arms + Transformer shown separately (Transformer 3/3542 is an informative comparator, not cherry-picking). |
 | **appendix_A_H1_sensitivities** | **PASS** | (1)(2) exclude-temporal (frozen, 6/6), **exclude-compound-relational (POST-FREEZE SENSITIVITY, 6/6, omnibus p = 0.0005)** from v1.1, answered-valid all-types (frozen, 8/10), per-seed A_transition (v1.1). (3) note flags that the frozen "temporal_answered_valid" file is actually ALL types. (9) every sub-table included. |
@@ -46,15 +46,29 @@ separated · 7 CI/stat annotations correct · 8 H2 v1.1 amendment disclosed ·
 accuracy remains the H1/H2 primary; the H2 width is reported only via the approved
 post-freeze amendment; H3 stays behavioural (no mechanism claim).
 
-## Remaining WARN items (manuscript-time, not blockers)
-1. **fig1 / fig3 captions** must include: (a) fig1 — "y-axis is end-to-end task
-   accuracy and includes abstention, not a retrieval measure"; (b) fig3 — "correct
-   factual answers are < 1 % for every architecture past the window (green segment
-   not visible)".
-2. **fig2 layout** — move the K CI strip inside the accuracy panel or into a labelled
-   inset before final typesetting.
-3. **fig1 layout** — the "A_transition region" annotation is partly overprinted;
-   nudge it or convert to a bracket above the axis.
+## Cosmetic WARNs — RESOLVED (2026-09-09, before manuscript drafting)
+
+The three cosmetic WARNs were fixed in `scripts/build_publication_exhibits.py`
+without touching any data or scientific content. Re-audit: **all 9 main + 6
+appendix exhibits PASS**; `scripts/audit_publication_exhibits.py` — ALL CHECKS PASS.
+
+1. **fig1** — the "A_transition region" annotation is now a bracket above the plot
+   area (no overprint). Caption added (`CAPTIONS.md` / `EXHIBIT_MANIFEST.json`)
+   stating the y-axis is end-to-end task accuracy under the strict production
+   metric, so abstentions and malformed outputs both count as failures; curves are
+   raw cell means (no fit); the ordering is partly metric-dependent.
+2. **fig2** — the empirical-knee K markers (diamond + 95% CI bar per architecture)
+   are now drawn **inside** the accuracy panel near the axis floor, stacked as a
+   colour-coded ladder, with W redrawn over them as the dashed vertical line. W
+   (vertical dashed) and K (horizontal coloured bars) are unambiguously different
+   objects. Caption added.
+3. **fig3** — caption added stating that correct factual answers are < 1 % for
+   every architecture past W+16 (maximum 0.37 %, Transformer), which is why the
+   correct segment does not render; the value is present in the source table
+   `fig3_h3_outcome_composition_pastW16.csv`.
+
+Every main exhibit now carries a draft caption in
+`outputs/publication_exhibits/CAPTIONS.md`.
 
 ## BLOCKERS
 **None.**

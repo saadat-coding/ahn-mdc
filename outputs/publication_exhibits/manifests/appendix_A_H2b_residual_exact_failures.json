@@ -28,6 +28,7 @@
   "statistic_definitions": {
     "residual failure": "correct == 0 among rows with target_fully_exact_through_generation == True (schema.derive_boundary_conditions)"
   },
+  "caption": "",
   "generated_files": {
     "appendix_A_H2b_residual_exact_failures.md": "f0de4c858b25d052992f7a7e29858f4b6adca4e08849b16b5f26dbfd5691cdf3"
   },

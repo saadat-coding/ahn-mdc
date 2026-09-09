@@ -26,6 +26,7 @@
     "strict_accuracy": "correct / n at realised model_tat \u2265 512",
     "wilson95": "Wilson score interval, z = 1.96"
   },
+  "caption": "Retrieval at deep recurrent pressure: realised model_tokens_after_target >= 512 (twice W), n = 3,542 per architecture. Correct counts are 0 (DeltaNet, GatedDeltaNet), 1 (Mamba2), and 3 (baseline); Wilson 95% upper bounds are at or below 0.25%. Abstention exceeds 89% for all four. No measurable target-specific factual retention was observed at deep recurrent pressure under the production evaluation.",
   "generated_files": {
     "tbl5_deep_recurrent.md": "33e3f2018f8533f41087564183407788eafcd36c144294ac21e13fcd9bf49bae"
   },

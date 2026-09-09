@@ -31,11 +31,13 @@
     "appropriate_abstention_rate": "P(abstained | model_tat \u2265 W+16)",
     "unsignalled_failure_rate": "P((wrong valid) \u2228 malformed | model_tat \u2265 W+16)"
   },
+  "caption": "Behaviour on trials past the sliding-window reference (realised model_tokens_after_target \u2265 W + 16 = 272; n \u2248 10,091 per architecture). Left: the four mutually exclusive per-trial outcomes \u2014 correct factual answer, incorrect valid answer, malformed output, abstention (\u201cI don't know\u201d) \u2014 as stacked fractions. Correct factual answers are below 1% for every architecture in this region (maximum 0.37%, Transformer), so the correct segment is not visible; essentially no architecture retrieves the target past the window. Right: the two frozen H3 behavioural-primary rates per architecture \u2014 appropriate abstention rate = P(abstained), and unsignalled failure rate = P(incorrect-valid \u2228 malformed). Each AHN architecture differs from the no-recurrent-memory baseline by |\u0394| \u2248 0.42 (all six contrasts Holm-adjusted p \u2248 0; the ordering is identical in all 8 seeds). This is a description of behaviour; it does not identify an internal mechanism.",
   "generated_files": {
-    "fig3_h3_behavioural_signalling.svg": "7aa0e2ab9579e550497681425f59cfeafbf0ca63f24804e9289727d4d14a2d0a"
+    "fig3_h3_behavioural_signalling.svg": "04c8f36cccf88c0a6ae8dcfd7500cde5ba2fde22dd5a111ac00e88eb9fbc8d8d"
   },
   "notes": [
     "four outcomes shown separately: correct / incorrect-valid / malformed / abstention.",
+    "correct factual answers are < 1% for every arm past W+16 (max 0.37%); the green segment is present in the source table but too small to render.",
     "no mechanistic claim \u2014 'signalling', not 'the model knows it forgot' (H3-4 is a PROHIBITED claim).",
     "factual calibration is a separate story (Appendix A-H3)."
   ]

@@ -32,6 +32,7 @@
     "K_strict/K_abstention": "isotonic 0.5 crossings (descriptive)",
     "A_recurrent": "mean strict accuracy over intended \u2265 315, hierarchical CI"
   },
+  "caption": "Per-architecture H2 summary. K_strict and K_abstention are the isotonic 0.5-crossings of pooled strict accuracy and of abstention rate against realised model_tokens_after_target; they are descriptive empirical knees, not thresholds, and are distinct from the architectural reference W = 256. Every K_strict lies below W. shape_vs_smooth compares a smooth log-linear fit with a fit allowed to change slope at W, by AIC (negative delta favours the change-point fit). A_recurrent is the mean strict accuracy over intended targets >= 315 with a 95% bootstrap interval. The A_transition gap (AHN pooled minus baseline) over [200, 270] is +0.249 [0.233, 0.266]. The pre-registered pooled 90-to-10 transition-width statistic was mathematically undefined for this dataset and is not reported here (Appendix A-H2a).",
   "generated_files": {
     "tbl3_h2_summary.md": "3856ab3d284158e25d4c8ba355a10e19f9206dfc21d2e0aca40f9f80141f4a75"
   },

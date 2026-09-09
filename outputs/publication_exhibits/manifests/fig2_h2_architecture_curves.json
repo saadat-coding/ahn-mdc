@@ -34,11 +34,12 @@
     "W": "architectural sliding-window boundary = 256",
     "A_transition gap": "A_transition(AHN pooled) \u2212 A_transition(transformer) over [200,270]"
   },
+  "caption": "Top: strict production accuracy versus realised model_tokens_after_target for each architecture (n = 1,920 per point; 95% bootstrap CI band). The vertical dashed line is the architectural sliding-window reference W = 256. The diamonds with horizontal bars near the axis floor are the empirical performance knee K per architecture (isotonic 0.5-crossing of pooled strict accuracy; 95% hierarchical bootstrap CI) \u2014 a descriptive location, not a threshold, and distinct from W. Every K (208\u2013240) lies below W. In the near-window band [200, 270] the AHN architectures retain +0.25 more accuracy than the no-recurrent-memory baseline (95% CI [0.23, 0.27]). Past W all four architectures fall to \u2248 0 (A_recurrent \u2248 0; Table 3). Bottom: abstention rate over all trials, same x-axis. The pre-registered pooled transition-width statistic was mathematically undefined for this dataset and is not shown (Table 3; Appendix A-H2a).",
   "generated_files": {
-    "fig2_h2_architecture_curves.svg": "e1eef598f20d3895fb4c7cf5391acabc4bd84875f986b6ddc593a81bdacc16f0"
+    "fig2_h2_architecture_curves.svg": "b63ae1ced3294bc526966c56b6745d17922e6798ce3ff2674a2a06f67f4879d5"
   },
   "notes": [
-    "W and K are visually distinct (dashed vertical line vs \u25bc markers with CI bars).",
+    "W and K are visually distinct: W is a dashed vertical line; K is a per-arm diamond + CI bar near the axis floor, inside the accuracy panel.",
     "the frozen pooled transition-width statistic is UNDEFINED and is deliberately omitted here (see Table 3 footnote and Appendix A-H2a).",
     "no implication that AHN retains information past W (A_recurrent \u2248 0; Table 3, Table 5)."
   ]

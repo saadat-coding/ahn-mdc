@@ -27,6 +27,7 @@
   "statistic_definitions": {
     "re-score": "evaluate.score_row applied to every stored (prediction, gold); compared to stored correct/abstained/malformed"
   },
+  "caption": "",
   "generated_files": {
     "appendix_A_REPRO_integrity.md": "62567d9ffdf5f34f580c6dab004fc80c8e33ab12da53188c3b18099c2bc3f83a"
   },

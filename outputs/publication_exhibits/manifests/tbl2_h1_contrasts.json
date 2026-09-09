@@ -26,6 +26,7 @@
     "ci95": "percentile 95% hierarchical bootstrap",
     "p_holm": "Holm-adjusted two-sided bootstrap p over the 10-contrast family"
   },
+  "caption": "All ten pairwise fact-type differences in A_transition, with 95% hierarchical (item then seed) cluster-bootstrap intervals (2,000 resamples) and Holm-adjusted two-sided bootstrap p-values over the ten-comparison family. All ten intervals exclude zero; the closest to the boundary is compound-relational versus temporal (p_holm = 0.037).",
   "generated_files": {
     "tbl2_h1_contrasts.md": "dc3f3c43453c331c083684eef0ebee3a36adb10bed53b869785ee1113ba63a0a"
   },

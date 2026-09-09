@@ -25,8 +25,9 @@
     "model_tokens_after_target": "all tokens after the target span in the tokenised model input; the canonical pressure coordinate",
     "W": "architectural sliding-window boundary = 256 (design-fixed; NOT a threshold)"
   },
+  "caption": "Top: schematic of one tokenised evaluation trajectory. A distractor context precedes the target span (median 15.5 tokens); model_tokens_after_target counts every token after the target span (distractors, the question and instruction, and the chat-template suffix) and is the pressure coordinate. W = 256 is the architectural sliding-window reference. Bottom: the 12 frozen intended pressure targets (grouping key, x-axis) against the realised model_tokens_after_target they produced (median and inter-quartile range over n = 7,680 trials per level); per-fact-type filler was calibrated with the base tokenizer so that realised closely tracks intended. Two targets fall in the control band, six in the transition band, four in the recurrent band. The full grid is 4 architectures x 240 items x 12 targets x 8 seeds = 92,160 trials.",
   "generated_files": {
-    "figD_experimental_design.svg": "38126b533801391a20286de735b45dde78dac570262d1db16f23abf8a704791a"
+    "figD_experimental_design.svg": "c338a30bb8a88b667a353cd01f922d378bbdb8ea3df665594873a2649ca2223b"
   },
   "notes": [
     "W=256 is the architectural window, drawn as a reference line only.",

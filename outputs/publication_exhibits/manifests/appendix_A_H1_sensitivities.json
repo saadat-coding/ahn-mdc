@@ -31,6 +31,7 @@
   "statistic_definitions": {
     "contrasts": "same estimator as Table 2, on the reduced fact-type set; Holm within family"
   },
+  "caption": "",
   "generated_files": {
     "appendix_A_H1_sensitivities.md": "30d429ef5ca56ed5e110b7b7e6624ddd9fdb7480225ff865c5e4216cfc2be987"
   },

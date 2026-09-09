@@ -28,6 +28,7 @@
     "A_transition_raw_strict": "FROZEN PRIMARY",
     "A_transition_answered_valid": "FROZEN SECONDARY sensitivity (recomputed per type via h1_degradation.a_transition(value='answered_valid'))"
   },
+  "caption": "H1 primary endpoint. A_transition is the mean strict production accuracy over the five intended transition targets (205-265), pooled over the three AHN architectures (n = 5,760 per fact type). Raw strict accuracy is the pre-registered primary metric (no chance correction). The answered-valid column (accuracy computed only over trials that produced a parseable answer) is a pre-registered secondary sensitivity, shown for context, not a replacement. In-window control columns are pooled over intended targets 150 and 180 (n = 3,072 per fact type). The label-permutation omnibus on the dispersion of the five A_transition means gives p = 5x10^-4 (0/2000 permutations).",
   "generated_files": {
     "tbl1_h1_primary.md": "3980cbffc2bf3486e8dd4f703df4a174aea5b348277a49c1b22ecb1f2201781b"
   },

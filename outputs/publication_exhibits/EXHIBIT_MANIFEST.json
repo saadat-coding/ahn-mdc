@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-09-09T22:28:29+00:00",
+  "generated_at_utc": "2026-09-09T22:44:20+00:00",
   "raw_artifact": "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet",
   "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
   "allowed_sources": [
@@ -40,8 +40,9 @@
         "model_tokens_after_target": "all tokens after the target span in the tokenised model input; the canonical pressure coordinate",
         "W": "architectural sliding-window boundary = 256 (design-fixed; NOT a threshold)"
       },
+      "caption": "Top: schematic of one tokenised evaluation trajectory. A distractor context precedes the target span (median 15.5 tokens); model_tokens_after_target counts every token after the target span (distractors, the question and instruction, and the chat-template suffix) and is the pressure coordinate. W = 256 is the architectural sliding-window reference. Bottom: the 12 frozen intended pressure targets (grouping key, x-axis) against the realised model_tokens_after_target they produced (median and inter-quartile range over n = 7,680 trials per level); per-fact-type filler was calibrated with the base tokenizer so that realised closely tracks intended. Two targets fall in the control band, six in the transition band, four in the recurrent band. The full grid is 4 architectures x 240 items x 12 targets x 8 seeds = 92,160 trials.",
       "generated_files": {
-        "figD_experimental_design.svg": "38126b533801391a20286de735b45dde78dac570262d1db16f23abf8a704791a"
+        "figD_experimental_design.svg": "c338a30bb8a88b667a353cd01f922d378bbdb8ea3df665594873a2649ca2223b"
       },
       "notes": [
         "W=256 is the architectural window, drawn as a reference line only.",
@@ -78,8 +79,9 @@
         "A_transition": "mean raw strict accuracy over intended targets [205,220,235,250,265], AHN arms pooled (h1_degradation.a_transition)",
         "omnibus": "label-permutation on the SD of the five A_transition means, 2000 permutations (h1_degradation.a_transition_omnibus)"
       },
+      "caption": "Strict production accuracy versus realised model_tokens_after_target for each fact type, pooled over the three AHN architectures (n = 5,760 per point). The y-axis is end-to-end task accuracy under the strict production metric: a trial counts as correct only if the model emits exactly the gold value, so abstentions (\u201cI don't know\u201d) and malformed outputs both count as failures. Curves are raw cell means (no fit). W = 256 is the architectural sliding-window reference, not a threshold. The shaded region marks the intended targets (205\u2013265) averaged for A_transition. The five-way spread of A_transition means exceeds label-permutation chance (p = 5\u00d710\u207b\u2074, 0/2000). The ordering is partly metric-dependent: under answered-valid accuracy it compresses (Table 1, Appendix A-H1). Internal data key \u201cmulti-hop\u201d is reported as \u201ccompound-relational\u201d.",
       "generated_files": {
-        "fig1_h1_nonuniform_degradation.svg": "989a5bcb4d394107147b0c53ae1779e777943f2395b428ed6b8d7db94af6d8ed"
+        "fig1_h1_nonuniform_degradation.svg": "6521b72fbce92aa9a1210e5c3aa709541e2b22d6f98d5a41d2f0711356494eb8"
       },
       "notes": [
         "y-axis is task accuracy and includes abstention \u2014 NOT 'information retained'.",
@@ -117,6 +119,7 @@
         "A_transition_raw_strict": "FROZEN PRIMARY",
         "A_transition_answered_valid": "FROZEN SECONDARY sensitivity (recomputed per type via h1_degradation.a_transition(value='answered_valid'))"
       },
+      "caption": "H1 primary endpoint. A_transition is the mean strict production accuracy over the five intended transition targets (205-265), pooled over the three AHN architectures (n = 5,760 per fact type). Raw strict accuracy is the pre-registered primary metric (no chance correction). The answered-valid column (accuracy computed only over trials that produced a parseable answer) is a pre-registered secondary sensitivity, shown for context, not a replacement. In-window control columns are pooled over intended targets 150 and 180 (n = 3,072 per fact type). The label-permutation omnibus on the dispersion of the five A_transition means gives p = 5x10^-4 (0/2000 permutations).",
       "generated_files": {
         "tbl1_h1_primary.md": "3980cbffc2bf3486e8dd4f703df4a174aea5b348277a49c1b22ecb1f2201781b"
       },
@@ -152,6 +155,7 @@
         "ci95": "percentile 95% hierarchical bootstrap",
         "p_holm": "Holm-adjusted two-sided bootstrap p over the 10-contrast family"
       },
+      "caption": "All ten pairwise fact-type differences in A_transition, with 95% hierarchical (item then seed) cluster-bootstrap intervals (2,000 resamples) and Holm-adjusted two-sided bootstrap p-values over the ten-comparison family. All ten intervals exclude zero; the closest to the boundary is compound-relational versus temporal (p_holm = 0.037).",
       "generated_files": {
         "tbl2_h1_contrasts.md": "dc3f3c43453c331c083684eef0ebee3a36adb10bed53b869785ee1113ba63a0a"
       },
@@ -193,11 +197,12 @@
         "W": "architectural sliding-window boundary = 256",
         "A_transition gap": "A_transition(AHN pooled) \u2212 A_transition(transformer) over [200,270]"
       },
+      "caption": "Top: strict production accuracy versus realised model_tokens_after_target for each architecture (n = 1,920 per point; 95% bootstrap CI band). The vertical dashed line is the architectural sliding-window reference W = 256. The diamonds with horizontal bars near the axis floor are the empirical performance knee K per architecture (isotonic 0.5-crossing of pooled strict accuracy; 95% hierarchical bootstrap CI) \u2014 a descriptive location, not a threshold, and distinct from W. Every K (208\u2013240) lies below W. In the near-window band [200, 270] the AHN architectures retain +0.25 more accuracy than the no-recurrent-memory baseline (95% CI [0.23, 0.27]). Past W all four architectures fall to \u2248 0 (A_recurrent \u2248 0; Table 3). Bottom: abstention rate over all trials, same x-axis. The pre-registered pooled transition-width statistic was mathematically undefined for this dataset and is not shown (Table 3; Appendix A-H2a).",
       "generated_files": {
-        "fig2_h2_architecture_curves.svg": "e1eef598f20d3895fb4c7cf5391acabc4bd84875f986b6ddc593a81bdacc16f0"
+        "fig2_h2_architecture_curves.svg": "b63ae1ced3294bc526966c56b6745d17922e6798ce3ff2674a2a06f67f4879d5"
       },
       "notes": [
-        "W and K are visually distinct (dashed vertical line vs \u25bc markers with CI bars).",
+        "W and K are visually distinct: W is a dashed vertical line; K is a per-arm diamond + CI bar near the axis floor, inside the accuracy panel.",
         "the frozen pooled transition-width statistic is UNDEFINED and is deliberately omitted here (see Table 3 footnote and Appendix A-H2a).",
         "no implication that AHN retains information past W (A_recurrent \u2248 0; Table 3, Table 5)."
       ]
@@ -236,6 +241,7 @@
         "K_strict/K_abstention": "isotonic 0.5 crossings (descriptive)",
         "A_recurrent": "mean strict accuracy over intended \u2265 315, hierarchical CI"
       },
+      "caption": "Per-architecture H2 summary. K_strict and K_abstention are the isotonic 0.5-crossings of pooled strict accuracy and of abstention rate against realised model_tokens_after_target; they are descriptive empirical knees, not thresholds, and are distinct from the architectural reference W = 256. Every K_strict lies below W. shape_vs_smooth compares a smooth log-linear fit with a fit allowed to change slope at W, by AIC (negative delta favours the change-point fit). A_recurrent is the mean strict accuracy over intended targets >= 315 with a 95% bootstrap interval. The A_transition gap (AHN pooled minus baseline) over [200, 270] is +0.249 [0.233, 0.266]. The pre-registered pooled 90-to-10 transition-width statistic was mathematically undefined for this dataset and is not reported here (Appendix A-H2a).",
       "generated_files": {
         "tbl3_h2_summary.md": "3856ab3d284158e25d4c8ba355a10e19f9206dfc21d2e0aca40f9f80141f4a75"
       },
@@ -276,11 +282,13 @@
         "appropriate_abstention_rate": "P(abstained | model_tat \u2265 W+16)",
         "unsignalled_failure_rate": "P((wrong valid) \u2228 malformed | model_tat \u2265 W+16)"
       },
+      "caption": "Behaviour on trials past the sliding-window reference (realised model_tokens_after_target \u2265 W + 16 = 272; n \u2248 10,091 per architecture). Left: the four mutually exclusive per-trial outcomes \u2014 correct factual answer, incorrect valid answer, malformed output, abstention (\u201cI don't know\u201d) \u2014 as stacked fractions. Correct factual answers are below 1% for every architecture in this region (maximum 0.37%, Transformer), so the correct segment is not visible; essentially no architecture retrieves the target past the window. Right: the two frozen H3 behavioural-primary rates per architecture \u2014 appropriate abstention rate = P(abstained), and unsignalled failure rate = P(incorrect-valid \u2228 malformed). Each AHN architecture differs from the no-recurrent-memory baseline by |\u0394| \u2248 0.42 (all six contrasts Holm-adjusted p \u2248 0; the ordering is identical in all 8 seeds). This is a description of behaviour; it does not identify an internal mechanism.",
       "generated_files": {
-        "fig3_h3_behavioural_signalling.svg": "7aa0e2ab9579e550497681425f59cfeafbf0ca63f24804e9289727d4d14a2d0a"
+        "fig3_h3_behavioural_signalling.svg": "04c8f36cccf88c0a6ae8dcfd7500cde5ba2fde22dd5a111ac00e88eb9fbc8d8d"
       },
       "notes": [
         "four outcomes shown separately: correct / incorrect-valid / malformed / abstention.",
+        "correct factual answers are < 1% for every arm past W+16 (max 0.37%); the green segment is present in the source table but too small to render.",
         "no mechanistic claim \u2014 'signalling', not 'the model knows it forgot' (H3-4 is a PROHIBITED claim).",
         "factual calibration is a separate story (Appendix A-H3)."
       ]
@@ -313,6 +321,7 @@
       "statistic_definitions": {
         "control_verdict": "full_run.control_validity (frozen); floor-only per-type gate"
       },
+      "caption": "Fact-type constructs and in-window (control) retrieval, pooled over intended targets 150 and 180 (n = 3,072 per fact type). compound-relational (internal data key multi-hop) is a single co-located two-clause sentence with a query that needs both clauses; it is not a benchmark of multi-hop reasoning across separated facts. Its control retrieval reaches only 0.842 (0.951 among answered trials; 0.115 abstention), which triggers a pre-registered WARNING (strict < 0.85 and abstention > 0.10); the FAIL threshold of 0.70 was not reached, so the type is retained in the H1 primary. temporal is judged on answered-valid accuracy (0.922) with abstention (0.384) tracked separately.",
       "generated_files": {
         "tbl4_construct_control.md": "29487dcd557498ccfbfb1e58dfddd9b820db8aa9387fba3fafd6d068ee079928"
       },
@@ -346,6 +355,7 @@
         "strict_accuracy": "correct / n at realised model_tat \u2265 512",
         "wilson95": "Wilson score interval, z = 1.96"
       },
+      "caption": "Retrieval at deep recurrent pressure: realised model_tokens_after_target >= 512 (twice W), n = 3,542 per architecture. Correct counts are 0 (DeltaNet, GatedDeltaNet), 1 (Mamba2), and 3 (baseline); Wilson 95% upper bounds are at or below 0.25%. Abstention exceeds 89% for all four. No measurable target-specific factual retention was observed at deep recurrent pressure under the production evaluation.",
       "generated_files": {
         "tbl5_deep_recurrent.md": "33e3f2018f8533f41087564183407788eafcd36c144294ac21e13fcd9bf49bae"
       },
@@ -386,6 +396,7 @@
       "statistic_definitions": {
         "contrasts": "same estimator as Table 2, on the reduced fact-type set; Holm within family"
       },
+      "caption": "",
       "generated_files": {
         "appendix_A_H1_sensitivities.md": "30d429ef5ca56ed5e110b7b7e6624ddd9fdb7480225ff865c5e4216cfc2be987"
       },
@@ -428,6 +439,7 @@
         "eligibility": "fit_max \u2265 0.90 AND fit_min \u2264 0.10 (from the estimator, not observed convenience)",
         "summary": "per-arm median over globally-eligible fact types + hierarchical bootstrap CI"
       },
+      "caption": "",
       "generated_files": {
         "appendix_A_H2a_transition_width_amendment.md": "3f2d9b70966e3db7565860d5e684937bfa43b3fe1deedfb8923f7ae594e28a33"
       },
@@ -463,6 +475,7 @@
       "statistic_definitions": {
         "residual failure": "correct == 0 among rows with target_fully_exact_through_generation == True (schema.derive_boundary_conditions)"
       },
+      "caption": "",
       "generated_files": {
         "appendix_A_H2b_residual_exact_failures.md": "f0de4c858b25d052992f7a7e29858f4b6adca4e08849b16b5f26dbfd5691cdf3"
       },
@@ -502,6 +515,7 @@
         "gap_change": "hierarchical bootstrap CI on \u0394(confidence \u2212 accuracy), answered-valid only",
         "ECE": "10 equal-width bins (Guo et al. 2017); CWR threshold 0.5 (PROVISIONAL)"
       },
+      "caption": "",
       "generated_files": {
         "appendix_A_H3_calibration_detail.md": "ef3de4fcddddf074c82b180522c53159204053facdfcf37de2587a4a82fccb42"
       },
@@ -541,6 +555,7 @@
       "statistic_definitions": {
         "malformed subtype": "frozen score_row branch (empty / negation / >4 words / unrecognised value)"
       },
+      "caption": "",
       "generated_files": {
         "appendix_A_VAL_control_behaviour.md": "1da3d1ec63ca5d9cbbae34b6829ce7c4a5768c6376443b8d252390f5017189a9"
       },
@@ -575,6 +590,7 @@
       "statistic_definitions": {
         "re-score": "evaluate.score_row applied to every stored (prediction, gold); compared to stored correct/abstained/malformed"
       },
+      "caption": "",
       "generated_files": {
         "appendix_A_REPRO_integrity.md": "62567d9ffdf5f34f580c6dab004fc80c8e33ab12da53188c3b18099c2bc3f83a"
       },

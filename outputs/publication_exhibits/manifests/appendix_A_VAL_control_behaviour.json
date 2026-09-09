@@ -32,6 +32,7 @@
   "statistic_definitions": {
     "malformed subtype": "frozen score_row branch (empty / negation / >4 words / unrecognised value)"
   },
+  "caption": "",
   "generated_files": {
     "appendix_A_VAL_control_behaviour.md": "1da3d1ec63ca5d9cbbae34b6829ce7c4a5768c6376443b8d252390f5017189a9"
   },

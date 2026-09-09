@@ -35,6 +35,7 @@
     "eligibility": "fit_max \u2265 0.90 AND fit_min \u2264 0.10 (from the estimator, not observed convenience)",
     "summary": "per-arm median over globally-eligible fact types + hierarchical bootstrap CI"
   },
+  "caption": "",
   "generated_files": {
     "appendix_A_H2a_transition_width_amendment.md": "3f2d9b70966e3db7565860d5e684937bfa43b3fe1deedfb8923f7ae594e28a33"
   },

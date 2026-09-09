@@ -32,6 +32,7 @@
     "gap_change": "hierarchical bootstrap CI on \u0394(confidence \u2212 accuracy), answered-valid only",
     "ECE": "10 equal-width bins (Guo et al. 2017); CWR threshold 0.5 (PROVISIONAL)"
   },
+  "caption": "",
   "generated_files": {
     "appendix_A_H3_calibration_detail.md": "ef3de4fcddddf074c82b180522c53159204053facdfcf37de2587a4a82fccb42"
   },
