@@ -1,0 +1,35 @@
+{
+  "exhibit_id": "tbl5_deep_recurrent",
+  "title": "Deep-recurrent negative-retention result",
+  "kind": "table",
+  "placement": "MAIN",
+  "claim_ids": [
+    "H2-5"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "outputs/final_v1_1_reporting_amendment/sensitivity__deep_recurrent_retention__per_arm.csv",
+    "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet"
+  ],
+  "source_tables": [
+    "tbl5_deep_recurrent.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": "POST-FREEZE SENSITIVITY (NEGATIVE RESULT)",
+  "statistic_definitions": {
+    "strict_accuracy": "correct / n at realised model_tat \u2265 512",
+    "wilson95": "Wilson score interval, z = 1.96"
+  },
+  "generated_files": {
+    "tbl5_deep_recurrent.md": "33e3f2018f8533f41087564183407788eafcd36c144294ac21e13fcd9bf49bae"
+  },
+  "notes": [
+    "near-zero accuracy is shown WITH its uncertainty interval, never as a bare '0'."
+  ]
+}

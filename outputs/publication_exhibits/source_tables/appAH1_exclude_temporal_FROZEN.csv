@@ -1,0 +1,7 @@
+a,b,diff,ci_low,ci_high,excludes_zero_raw,p_approx,p_holm,significant_holm
+contradictory,entity-attribute,-0.0736111111111111,-0.107502713851498,-0.0403248792270531,True,0.0,0.0,True
+contradictory,compound-relational,0.2654513888888888,0.2235184123847167,0.3092376673280297,True,0.0,0.0,True
+contradictory,numerical,0.1309027777777777,0.1001682717953661,0.1605936287416851,True,0.0,0.0,True
+entity-attribute,compound-relational,0.3390625,0.2936269322543832,0.3837319377380219,True,0.0,0.0,True
+entity-attribute,numerical,0.2045138888888889,0.1696596934667587,0.2376247519841269,True,0.0,0.0,True
+compound-relational,numerical,-0.1345486111111111,-0.1768069172486714,-0.0917871700492647,True,0.0,0.0,True

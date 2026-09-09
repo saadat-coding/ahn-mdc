@@ -1,0 +1,5 @@
+architecture,fail_n,base_n,fail_rate
+AHN-DeltaNet,2639,8809,0.2996
+AHN-GatedDeltaNet,2475,8873,0.2789
+AHN-Mamba2,2616,8884,0.2945
+Transformer (no AHN),3506,8409,0.4169

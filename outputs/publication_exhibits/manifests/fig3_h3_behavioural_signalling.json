@@ -1,0 +1,42 @@
+{
+  "exhibit_id": "fig3_h3_behavioural_signalling",
+  "title": "H3: behavioural uncertainty signalling",
+  "kind": "figure",
+  "placement": "MAIN",
+  "claim_ids": [
+    "H3-1",
+    "H3-2"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet",
+    "final_audit/FINAL_LOCKED/final_h3_h3_behavioral_per_arm.csv",
+    "final_audit/FINAL_LOCKED/final_h3_h3_behavioral_contrasts.csv",
+    "final_audit/FINAL_LOCKED/final_h3_h3_abstention_confidence.csv"
+  ],
+  "source_tables": [
+    "fig3_h3_behavioral_per_arm.csv",
+    "fig3_h3_outcome_composition_pastW16.csv",
+    "fig3_h3_abstention_by_pressure.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": null,
+  "statistic_definitions": {
+    "appropriate_abstention_rate": "P(abstained | model_tat \u2265 W+16)",
+    "unsignalled_failure_rate": "P((wrong valid) \u2228 malformed | model_tat \u2265 W+16)"
+  },
+  "generated_files": {
+    "fig3_h3_behavioural_signalling.svg": "7aa0e2ab9579e550497681425f59cfeafbf0ca63f24804e9289727d4d14a2d0a"
+  },
+  "notes": [
+    "four outcomes shown separately: correct / incorrect-valid / malformed / abstention.",
+    "no mechanistic claim \u2014 'signalling', not 'the model knows it forgot' (H3-4 is a PROHIBITED claim).",
+    "factual calibration is a separate story (Appendix A-H3)."
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "exhibit_id": "fig2_h2_architecture_curves",
+  "title": "H2: architecture degradation curves with W and K",
+  "kind": "figure",
+  "placement": "MAIN",
+  "claim_ids": [
+    "H2-1",
+    "H2-2",
+    "H2-4",
+    "H2-5"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet",
+    "final_audit/FINAL_LOCKED/final_h2_h2_curves.csv",
+    "final_audit/FINAL_LOCKED/final_h2_h2_k_strict.csv",
+    "final_audit/FINAL_LOCKED/final_summary.json"
+  ],
+  "source_tables": [
+    "fig2_h2_curves.csv",
+    "fig2_h2_abstention.csv",
+    "fig2_h2_k_strict.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": null,
+  "statistic_definitions": {
+    "K (knee)": "isotonic 0.5 crossing of pooled strict accuracy vs realised model-tat (h2_threshold; DESCRIPTIVE \u2014 not a threshold)",
+    "W": "architectural sliding-window boundary = 256",
+    "A_transition gap": "A_transition(AHN pooled) \u2212 A_transition(transformer) over [200,270]"
+  },
+  "generated_files": {
+    "fig2_h2_architecture_curves.svg": "e1eef598f20d3895fb4c7cf5391acabc4bd84875f986b6ddc593a81bdacc16f0"
+  },
+  "notes": [
+    "W and K are visually distinct (dashed vertical line vs \u25bc markers with CI bars).",
+    "the frozen pooled transition-width statistic is UNDEFINED and is deliberately omitted here (see Table 3 footnote and Appendix A-H2a).",
+    "no implication that AHN retains information past W (A_recurrent \u2248 0; Table 3, Table 5)."
+  ]
+}

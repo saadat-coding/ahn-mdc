@@ -1,0 +1,35 @@
+{
+  "exhibit_id": "figD_experimental_design",
+  "title": "Experimental design / memory-pressure setup",
+  "kind": "figure",
+  "placement": "MAIN",
+  "claim_ids": [
+    "(design)"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet"
+  ],
+  "source_tables": [
+    "figD_design_grid.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": null,
+  "statistic_definitions": {
+    "model_tokens_after_target": "all tokens after the target span in the tokenised model input; the canonical pressure coordinate",
+    "W": "architectural sliding-window boundary = 256 (design-fixed; NOT a threshold)"
+  },
+  "generated_files": {
+    "figD_experimental_design.svg": "38126b533801391a20286de735b45dde78dac570262d1db16f23abf8a704791a"
+  },
+  "notes": [
+    "W=256 is the architectural window, drawn as a reference line only.",
+    "The grouping key is the intended target; curves are plotted against realised model-tat."
+  ]
+}

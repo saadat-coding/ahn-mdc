@@ -1,0 +1,39 @@
+{
+  "exhibit_id": "fig1_h1_nonuniform_degradation",
+  "title": "H1: non-uniform degradation across information types",
+  "kind": "figure",
+  "placement": "MAIN",
+  "claim_ids": [
+    "H1-1",
+    "H1-2"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet",
+    "final_audit/FINAL_LOCKED/final_h1_h1_a_transition.csv"
+  ],
+  "source_tables": [
+    "fig1_h1_curves.csv",
+    "fig1_h1_a_transition.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": null,
+  "statistic_definitions": {
+    "A_transition": "mean raw strict accuracy over intended targets [205,220,235,250,265], AHN arms pooled (h1_degradation.a_transition)",
+    "omnibus": "label-permutation on the SD of the five A_transition means, 2000 permutations (h1_degradation.a_transition_omnibus)"
+  },
+  "generated_files": {
+    "fig1_h1_nonuniform_degradation.svg": "989a5bcb4d394107147b0c53ae1779e777943f2395b428ed6b8d7db94af6d8ed"
+  },
+  "notes": [
+    "y-axis is task accuracy and includes abstention \u2014 NOT 'information retained'.",
+    "internal key 'multi-hop' shown as 'compound-relational'.",
+    "answered-valid ordering (Table 1) is less separated \u2014 the ordering is not metric-independent."
+  ]
+}

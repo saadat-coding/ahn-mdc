@@ -1,0 +1,42 @@
+{
+  "exhibit_id": "appendix_A_H2a_transition_width_amendment",
+  "title": "H2 transition-width amendment (Option A)",
+  "kind": "table",
+  "placement": "APPENDIX",
+  "claim_ids": [
+    "H2-2",
+    "H2-3"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "outputs/final_v1_1_reporting_amendment/h2_amend__eligibility.csv",
+    "outputs/final_v1_1_reporting_amendment/h2_amend__width_by_facttype.csv",
+    "outputs/final_v1_1_reporting_amendment/h2_amend__width_summary_median.csv",
+    "outputs/final_v1_1_reporting_amendment/h2_amend__width_seed_sensitivity.csv",
+    "final_audit/FINAL_LOCKED/final_h2_h2_width.csv"
+  ],
+  "source_tables": [
+    "appAH2a_eligibility.csv",
+    "appAH2a_width_by_facttype.csv",
+    "appAH2a_width_summary_median.csv",
+    "appAH2a_width_seed_sensitivity.csv",
+    "appAH2a_FROZEN_pooled_width_RECORD_all_NaN.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": "POST-FREEZE REPORTING AMENDMENT (Option A)",
+  "statistic_definitions": {
+    "90->10 width": "crossing_x(fit, 0.10) \u2212 crossing_x(fit, 0.90) on the isotonic non-increasing strict-accuracy fit vs realised model-tat",
+    "eligibility": "fit_max \u2265 0.90 AND fit_min \u2264 0.10 (from the estimator, not observed convenience)",
+    "summary": "per-arm median over globally-eligible fact types + hierarchical bootstrap CI"
+  },
+  "generated_files": {
+    "appendix_A_H2a_transition_width_amendment.md": "3f2d9b70966e3db7565860d5e684937bfa43b3fe1deedfb8923f7ae594e28a33"
+  },
+  "notes": []
+}

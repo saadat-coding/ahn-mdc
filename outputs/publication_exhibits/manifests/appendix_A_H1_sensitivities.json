@@ -1,0 +1,38 @@
+{
+  "exhibit_id": "appendix_A_H1_sensitivities",
+  "title": "H1 sensitivities",
+  "kind": "table",
+  "placement": "APPENDIX",
+  "claim_ids": [
+    "H1-1",
+    "H1-2"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "final_audit/FINAL_LOCKED/final_h1_h1_sensitivity_excl_temporal.csv",
+    "final_audit/FINAL_LOCKED/final_h1_h1_sensitivity_temporal_answered_valid.csv",
+    "outputs/final_v1_1_reporting_amendment/h1_sensitivity__exclude_compound_relational__contrasts.csv",
+    "outputs/final_v1_1_reporting_amendment/robustness__per_seed_headline__a_transition_by_seed.csv"
+  ],
+  "source_tables": [
+    "appAH1_exclude_temporal_FROZEN.csv",
+    "appAH1_exclude_compound_relational_POSTFREEZE.csv",
+    "appAH1_answered_valid_all_types_FROZEN.csv",
+    "appAH1_a_transition_by_seed_POSTFREEZE.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": "mixed: exclude-compound-relational is POST-FREEZE SENSITIVITY",
+  "statistic_definitions": {
+    "contrasts": "same estimator as Table 2, on the reduced fact-type set; Holm within family"
+  },
+  "generated_files": {
+    "appendix_A_H1_sensitivities.md": "30d429ef5ca56ed5e110b7b7e6624ddd9fdb7480225ff865c5e4216cfc2be987"
+  },
+  "notes": []
+}

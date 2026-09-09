@@ -1,0 +1,35 @@
+{
+  "exhibit_id": "appendix_A_H2b_residual_exact_failures",
+  "title": "Residual exact-memory failures",
+  "kind": "table",
+  "placement": "APPENDIX",
+  "claim_ids": [
+    "VAL-4"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "outputs/final_v1_1_reporting_amendment/descriptive__residual_fully_exact_failures__*.csv",
+    "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet"
+  ],
+  "source_tables": [
+    "appAH2b_overall.csv",
+    "appAH2b_by_fact_type.csv",
+    "appAH2b_by_intended_target.csv",
+    "appAH2b_by_architecture.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": "DESCRIPTIVE ROBUSTNESS / LIMITATION",
+  "statistic_definitions": {
+    "residual failure": "correct == 0 among rows with target_fully_exact_through_generation == True (schema.derive_boundary_conditions)"
+  },
+  "generated_files": {
+    "appendix_A_H2b_residual_exact_failures.md": "f0de4c858b25d052992f7a7e29858f4b6adca4e08849b16b5f26dbfd5691cdf3"
+  },
+  "notes": []
+}

@@ -1,0 +1,5 @@
+architecture,width_tokens,ci_low,ci_high,verdict
+deltanet,,,,intermediate
+gated_deltanet,,,,intermediate
+mamba2,,,,intermediate
+transformer,,,,intermediate

@@ -1,0 +1,37 @@
+{
+  "exhibit_id": "tbl1_h1_primary",
+  "title": "H1 primary result",
+  "kind": "table",
+  "placement": "MAIN",
+  "claim_ids": [
+    "H1-1",
+    "H1-2"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "final_audit/FINAL_LOCKED/final_h1_h1_a_transition.csv",
+    "final_audit/FINAL_LOCKED/final_control_validity_control_validity.csv",
+    "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet"
+  ],
+  "source_tables": [
+    "tbl1_h1_primary.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": null,
+  "statistic_definitions": {
+    "A_transition_raw_strict": "FROZEN PRIMARY",
+    "A_transition_answered_valid": "FROZEN SECONDARY sensitivity (recomputed per type via h1_degradation.a_transition(value='answered_valid'))"
+  },
+  "generated_files": {
+    "tbl1_h1_primary.md": "3980cbffc2bf3486e8dd4f703df4a174aea5b348277a49c1b22ecb1f2201781b"
+  },
+  "notes": [
+    "compound-relational and temporal have the lowest raw A_transition AND elevated in-window abstention."
+  ]
+}

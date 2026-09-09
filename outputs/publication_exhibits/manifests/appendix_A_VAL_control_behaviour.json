@@ -1,0 +1,39 @@
+{
+  "exhibit_id": "appendix_A_VAL_control_behaviour",
+  "title": "Transformer control + temporal bias",
+  "kind": "table",
+  "placement": "APPENDIX",
+  "claim_ids": [
+    "VAL-1",
+    "VAL-3",
+    "VAL-2"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "outputs/final_v1_1_reporting_amendment/disclosure__transformer_malformed__*.csv",
+    "outputs/final_v1_1_reporting_amendment/disclosure__temporal_counterbalancing__*.csv",
+    "outputs/final_v1_1_reporting_amendment/disclosure__compound_relational_control_warning__*.csv"
+  ],
+  "source_tables": [
+    "appAVAL_transformer_malformed_by_pressure.csv",
+    "appAVAL_malformed_per_arm.csv",
+    "appAVAL_transformer_malformed_subtypes.csv",
+    "appAVAL_temporal_control_subgroups.csv",
+    "appAVAL_compound_relational_by_seed.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": "LIMITATION / DISCLOSURE",
+  "statistic_definitions": {
+    "malformed subtype": "frozen score_row branch (empty / negation / >4 words / unrecognised value)"
+  },
+  "generated_files": {
+    "appendix_A_VAL_control_behaviour.md": "1da3d1ec63ca5d9cbbae34b6829ce7c4a5768c6376443b8d252390f5017189a9"
+  },
+  "notes": []
+}

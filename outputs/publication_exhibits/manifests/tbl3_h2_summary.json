@@ -1,0 +1,41 @@
+{
+  "exhibit_id": "tbl3_h2_summary",
+  "title": "H2 architecture summary",
+  "kind": "table",
+  "placement": "MAIN",
+  "claim_ids": [
+    "H2-1",
+    "H2-2",
+    "H2-4",
+    "H2-5"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet",
+    "final_audit/FINAL_LOCKED/final_h2_h2_k_strict.csv",
+    "final_audit/FINAL_LOCKED/final_h2_h2_shape_break_at_W.csv",
+    "final_audit/FINAL_LOCKED/final_h2_h2_a_recurrent.csv",
+    "final_audit/FINAL_LOCKED/final_summary.json"
+  ],
+  "source_tables": [
+    "tbl3_h2_summary.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": null,
+  "statistic_definitions": {
+    "K_strict/K_abstention": "isotonic 0.5 crossings (descriptive)",
+    "A_recurrent": "mean strict accuracy over intended \u2265 315, hierarchical CI"
+  },
+  "generated_files": {
+    "tbl3_h2_summary.md": "3856ab3d284158e25d4c8ba355a10e19f9206dfc21d2e0aca40f9f80141f4a75"
+  },
+  "notes": [
+    "frozen 'intermediate' width verdict deliberately excluded."
+  ]
+}

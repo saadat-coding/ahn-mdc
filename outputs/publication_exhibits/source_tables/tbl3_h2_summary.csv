@@ -1,0 +1,5 @@
+architecture,K_strict,K_abstention,shape_vs_smooth,A_recurrent
+Transformer (no AHN),"208.3 [207.1, 209.5]",422,threshold-like (ΔAIC -0.7),"0.0047 [0.0022, 0.0078]"
+AHN-Mamba2,"219.6 [217.2, 237.5]",247,threshold-like (ΔAIC -2.6),"0.0007 [0.0000, 0.0017]"
+AHN-DeltaNet,"218.4 [215.9, 236.9]",248,threshold-like (ΔAIC -7.4),"0.0001 [0.0000, 0.0005]"
+AHN-GatedDeltaNet,"240.0 [220.4, 243.9]",251,threshold-like (ΔAIC -8.3),"0.0007 [0.0000, 0.0016]"

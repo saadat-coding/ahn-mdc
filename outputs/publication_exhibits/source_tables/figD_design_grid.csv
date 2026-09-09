@@ -1,0 +1,13 @@
+intended_model_tat,realised_median,realised_q1,realised_q3,n,band
+150,149.0,142.0,157.0,7680,control
+180,181.0,174.0,188.0,7680,control
+205,204.0,198.0,211.0,7680,transition
+220,220.0,214.0,227.0,7680,transition
+235,235.0,229.0,242.0,7680,transition
+250,250.0,243.0,257.0,7680,transition
+265,266.0,259.0,273.0,7680,transition
+285,284.0,277.0,292.0,7680,transition
+315,314.0,307.0,322.0,7680,recurrent
+380,379.0,373.0,386.0,7680,recurrent
+520,521.0,514.0,527.0,7680,recurrent
+760,761.0,755.0,768.0,7680,recurrent

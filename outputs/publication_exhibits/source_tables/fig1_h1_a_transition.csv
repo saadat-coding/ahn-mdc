@@ -1,0 +1,6 @@
+fact_type,a_transition,n,n_items,fact_type_display
+multi-hop,0.2548611111111111,5760,48,compound-relational
+temporal,0.3069444444444444,5760,48,temporal
+numerical,0.3894097222222222,5760,48,numerical
+contradictory,0.5203125,5760,48,contradictory
+entity-attribute,0.5939236111111111,5760,48,entity-attribute

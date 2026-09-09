@@ -1,0 +1,27 @@
+gate,verdict,detail
+trial_count,PASS,92160 rows; expected 4x240x12x8 = 92160
+schema_valid,PASS,"core/h1/h2/h3 columns present, flags 0/1, no dup design cells"
+provenance:requested_tokens_after_target,PASS,"present, no nulls"
+provenance:model_tokens_after_target,PASS,"present, no nulls"
+provenance:target_fact_tokens,PASS,"present, no nulls"
+provenance:n_new_tokens,PASS,"present, no nulls"
+provenance:intended_model_tokens_after_target,PASS,"present, no nulls"
+scorer_version,PASS,"got ['1.0'], expected ['1.0']"
+no_duplicate_cells,PASS,"0 duplicate (arm,item,seed,target) rows"
+matched_design,PASS,"all arms see identical (item,target,seed) cells"
+all_targets_present,PASS,"got [150, 180, 205, 220, 235, 250, 265, 285, 315, 380, 520, 760]"
+seeds_present,PASS,"got [0, 1, 2, 3, 4, 5, 6, 7], expected [0, 1, 2, 3, 4, 5, 6, 7]"
+temporal_factorial_balance,PASS,8 cells x 6 (direction x position x density)
+no_answer_leakage,PASS,assert_no_collision clean for all items
+compression_occurred,PASS,47808/92160 trials at model_tat >= W=256
+malformed_rate:deltanet,PASS,"4.7% malformed (AHN arm, hard cap 10%)"
+malformed_rate:gated_deltanet,PASS,"1.4% malformed (AHN arm, hard cap 10%)"
+malformed_rate:mamba2,PASS,"4.8% malformed (AHN arm, hard cap 10%)"
+malformed_control:transformer,CONTROL_BEHAVIOR,"39.6% malformed — hard-window control degeneration past its window (0.0% at the deep in-window anchor, pressure-localised); reported, not blocking"
+malformed_no_parser_break,PASS,deep in-window anchor malformed within cap for >=3 arms
+malformed_pooled,REPORT,12.6% pooled across arms — descriptive only (dominated by any hard-window control arm)
+control_validity:contradictory,PASS,strict 0.99
+control_validity:entity-attribute,PASS,strict 1.00
+control_validity:multi-hop,WARNING,strict 0.84; abstention 0.11
+control_validity:numerical,PASS,strict 1.00
+control_validity:temporal,PASS,"answered_valid 0.92, abstention 0.38"

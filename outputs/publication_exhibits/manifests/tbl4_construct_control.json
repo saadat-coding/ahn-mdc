@@ -1,0 +1,33 @@
+{
+  "exhibit_id": "tbl4_construct_control",
+  "title": "Construct / control-validity table",
+  "kind": "table",
+  "placement": "MAIN",
+  "claim_ids": [
+    "VAL-1",
+    "VAL-2"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "final_audit/FINAL_LOCKED/final_control_validity_control_validity.csv",
+    "config/facts.yaml"
+  ],
+  "source_tables": [
+    "tbl4_construct_control.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": null,
+  "statistic_definitions": {
+    "control_verdict": "full_run.control_validity (frozen); floor-only per-type gate"
+  },
+  "generated_files": {
+    "tbl4_construct_control.md": "29487dcd557498ccfbfb1e58dfddd9b820db8aa9387fba3fafd6d068ee079928"
+  },
+  "notes": []
+}

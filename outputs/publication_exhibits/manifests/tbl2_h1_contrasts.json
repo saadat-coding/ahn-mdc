@@ -1,0 +1,33 @@
+{
+  "exhibit_id": "tbl2_h1_contrasts",
+  "title": "H1 pairwise contrasts",
+  "kind": "table",
+  "placement": "MAIN",
+  "claim_ids": [
+    "H1-1"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "final_audit/FINAL_LOCKED/final_h1_h1_contrasts.csv"
+  ],
+  "source_tables": [
+    "tbl2_h1_contrasts.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": null,
+  "statistic_definitions": {
+    "diff": "A_transition(a) \u2212 A_transition(b)",
+    "ci95": "percentile 95% hierarchical bootstrap",
+    "p_holm": "Holm-adjusted two-sided bootstrap p over the 10-contrast family"
+  },
+  "generated_files": {
+    "tbl2_h1_contrasts.md": "dc3f3c43453c331c083684eef0ebee3a36adb10bed53b869785ee1113ba63a0a"
+  },
+  "notes": []
+}

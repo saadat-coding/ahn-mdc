@@ -1,0 +1,5 @@
+architecture,malformed_rate
+AHN-DeltaNet,0.0467
+AHN-GatedDeltaNet,0.0136
+AHN-Mamba2,0.0477
+Transformer (no AHN),0.3959

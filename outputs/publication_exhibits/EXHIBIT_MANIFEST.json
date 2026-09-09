@@ -1,0 +1,584 @@
+{
+  "generated_at_utc": "2026-09-09T22:28:29+00:00",
+  "raw_artifact": "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet",
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "allowed_sources": [
+    "locked raw parquet",
+    "frozen analysis v1.0 (final_*)",
+    "approved reporting amendment v1.1"
+  ],
+  "terminology": {
+    "multi-hop": "compound-relational (manuscript-facing; internal key preserved in source tables)"
+  },
+  "n_main": 9,
+  "n_appendix": 6,
+  "exhibits": [
+    {
+      "exhibit_id": "figD_experimental_design",
+      "title": "Experimental design / memory-pressure setup",
+      "kind": "figure",
+      "placement": "MAIN",
+      "claim_ids": [
+        "(design)"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet"
+      ],
+      "source_tables": [
+        "figD_design_grid.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": null,
+      "statistic_definitions": {
+        "model_tokens_after_target": "all tokens after the target span in the tokenised model input; the canonical pressure coordinate",
+        "W": "architectural sliding-window boundary = 256 (design-fixed; NOT a threshold)"
+      },
+      "generated_files": {
+        "figD_experimental_design.svg": "38126b533801391a20286de735b45dde78dac570262d1db16f23abf8a704791a"
+      },
+      "notes": [
+        "W=256 is the architectural window, drawn as a reference line only.",
+        "The grouping key is the intended target; curves are plotted against realised model-tat."
+      ]
+    },
+    {
+      "exhibit_id": "fig1_h1_nonuniform_degradation",
+      "title": "H1: non-uniform degradation across information types",
+      "kind": "figure",
+      "placement": "MAIN",
+      "claim_ids": [
+        "H1-1",
+        "H1-2"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet",
+        "final_audit/FINAL_LOCKED/final_h1_h1_a_transition.csv"
+      ],
+      "source_tables": [
+        "fig1_h1_curves.csv",
+        "fig1_h1_a_transition.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": null,
+      "statistic_definitions": {
+        "A_transition": "mean raw strict accuracy over intended targets [205,220,235,250,265], AHN arms pooled (h1_degradation.a_transition)",
+        "omnibus": "label-permutation on the SD of the five A_transition means, 2000 permutations (h1_degradation.a_transition_omnibus)"
+      },
+      "generated_files": {
+        "fig1_h1_nonuniform_degradation.svg": "989a5bcb4d394107147b0c53ae1779e777943f2395b428ed6b8d7db94af6d8ed"
+      },
+      "notes": [
+        "y-axis is task accuracy and includes abstention \u2014 NOT 'information retained'.",
+        "internal key 'multi-hop' shown as 'compound-relational'.",
+        "answered-valid ordering (Table 1) is less separated \u2014 the ordering is not metric-independent."
+      ]
+    },
+    {
+      "exhibit_id": "tbl1_h1_primary",
+      "title": "H1 primary result",
+      "kind": "table",
+      "placement": "MAIN",
+      "claim_ids": [
+        "H1-1",
+        "H1-2"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "final_audit/FINAL_LOCKED/final_h1_h1_a_transition.csv",
+        "final_audit/FINAL_LOCKED/final_control_validity_control_validity.csv",
+        "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet"
+      ],
+      "source_tables": [
+        "tbl1_h1_primary.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": null,
+      "statistic_definitions": {
+        "A_transition_raw_strict": "FROZEN PRIMARY",
+        "A_transition_answered_valid": "FROZEN SECONDARY sensitivity (recomputed per type via h1_degradation.a_transition(value='answered_valid'))"
+      },
+      "generated_files": {
+        "tbl1_h1_primary.md": "3980cbffc2bf3486e8dd4f703df4a174aea5b348277a49c1b22ecb1f2201781b"
+      },
+      "notes": [
+        "compound-relational and temporal have the lowest raw A_transition AND elevated in-window abstention."
+      ]
+    },
+    {
+      "exhibit_id": "tbl2_h1_contrasts",
+      "title": "H1 pairwise contrasts",
+      "kind": "table",
+      "placement": "MAIN",
+      "claim_ids": [
+        "H1-1"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "final_audit/FINAL_LOCKED/final_h1_h1_contrasts.csv"
+      ],
+      "source_tables": [
+        "tbl2_h1_contrasts.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": null,
+      "statistic_definitions": {
+        "diff": "A_transition(a) \u2212 A_transition(b)",
+        "ci95": "percentile 95% hierarchical bootstrap",
+        "p_holm": "Holm-adjusted two-sided bootstrap p over the 10-contrast family"
+      },
+      "generated_files": {
+        "tbl2_h1_contrasts.md": "dc3f3c43453c331c083684eef0ebee3a36adb10bed53b869785ee1113ba63a0a"
+      },
+      "notes": []
+    },
+    {
+      "exhibit_id": "fig2_h2_architecture_curves",
+      "title": "H2: architecture degradation curves with W and K",
+      "kind": "figure",
+      "placement": "MAIN",
+      "claim_ids": [
+        "H2-1",
+        "H2-2",
+        "H2-4",
+        "H2-5"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet",
+        "final_audit/FINAL_LOCKED/final_h2_h2_curves.csv",
+        "final_audit/FINAL_LOCKED/final_h2_h2_k_strict.csv",
+        "final_audit/FINAL_LOCKED/final_summary.json"
+      ],
+      "source_tables": [
+        "fig2_h2_curves.csv",
+        "fig2_h2_abstention.csv",
+        "fig2_h2_k_strict.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": null,
+      "statistic_definitions": {
+        "K (knee)": "isotonic 0.5 crossing of pooled strict accuracy vs realised model-tat (h2_threshold; DESCRIPTIVE \u2014 not a threshold)",
+        "W": "architectural sliding-window boundary = 256",
+        "A_transition gap": "A_transition(AHN pooled) \u2212 A_transition(transformer) over [200,270]"
+      },
+      "generated_files": {
+        "fig2_h2_architecture_curves.svg": "e1eef598f20d3895fb4c7cf5391acabc4bd84875f986b6ddc593a81bdacc16f0"
+      },
+      "notes": [
+        "W and K are visually distinct (dashed vertical line vs \u25bc markers with CI bars).",
+        "the frozen pooled transition-width statistic is UNDEFINED and is deliberately omitted here (see Table 3 footnote and Appendix A-H2a).",
+        "no implication that AHN retains information past W (A_recurrent \u2248 0; Table 3, Table 5)."
+      ]
+    },
+    {
+      "exhibit_id": "tbl3_h2_summary",
+      "title": "H2 architecture summary",
+      "kind": "table",
+      "placement": "MAIN",
+      "claim_ids": [
+        "H2-1",
+        "H2-2",
+        "H2-4",
+        "H2-5"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet",
+        "final_audit/FINAL_LOCKED/final_h2_h2_k_strict.csv",
+        "final_audit/FINAL_LOCKED/final_h2_h2_shape_break_at_W.csv",
+        "final_audit/FINAL_LOCKED/final_h2_h2_a_recurrent.csv",
+        "final_audit/FINAL_LOCKED/final_summary.json"
+      ],
+      "source_tables": [
+        "tbl3_h2_summary.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": null,
+      "statistic_definitions": {
+        "K_strict/K_abstention": "isotonic 0.5 crossings (descriptive)",
+        "A_recurrent": "mean strict accuracy over intended \u2265 315, hierarchical CI"
+      },
+      "generated_files": {
+        "tbl3_h2_summary.md": "3856ab3d284158e25d4c8ba355a10e19f9206dfc21d2e0aca40f9f80141f4a75"
+      },
+      "notes": [
+        "frozen 'intermediate' width verdict deliberately excluded."
+      ]
+    },
+    {
+      "exhibit_id": "fig3_h3_behavioural_signalling",
+      "title": "H3: behavioural uncertainty signalling",
+      "kind": "figure",
+      "placement": "MAIN",
+      "claim_ids": [
+        "H3-1",
+        "H3-2"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet",
+        "final_audit/FINAL_LOCKED/final_h3_h3_behavioral_per_arm.csv",
+        "final_audit/FINAL_LOCKED/final_h3_h3_behavioral_contrasts.csv",
+        "final_audit/FINAL_LOCKED/final_h3_h3_abstention_confidence.csv"
+      ],
+      "source_tables": [
+        "fig3_h3_behavioral_per_arm.csv",
+        "fig3_h3_outcome_composition_pastW16.csv",
+        "fig3_h3_abstention_by_pressure.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": null,
+      "statistic_definitions": {
+        "appropriate_abstention_rate": "P(abstained | model_tat \u2265 W+16)",
+        "unsignalled_failure_rate": "P((wrong valid) \u2228 malformed | model_tat \u2265 W+16)"
+      },
+      "generated_files": {
+        "fig3_h3_behavioural_signalling.svg": "7aa0e2ab9579e550497681425f59cfeafbf0ca63f24804e9289727d4d14a2d0a"
+      },
+      "notes": [
+        "four outcomes shown separately: correct / incorrect-valid / malformed / abstention.",
+        "no mechanistic claim \u2014 'signalling', not 'the model knows it forgot' (H3-4 is a PROHIBITED claim).",
+        "factual calibration is a separate story (Appendix A-H3)."
+      ]
+    },
+    {
+      "exhibit_id": "tbl4_construct_control",
+      "title": "Construct / control-validity table",
+      "kind": "table",
+      "placement": "MAIN",
+      "claim_ids": [
+        "VAL-1",
+        "VAL-2"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "final_audit/FINAL_LOCKED/final_control_validity_control_validity.csv",
+        "config/facts.yaml"
+      ],
+      "source_tables": [
+        "tbl4_construct_control.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": null,
+      "statistic_definitions": {
+        "control_verdict": "full_run.control_validity (frozen); floor-only per-type gate"
+      },
+      "generated_files": {
+        "tbl4_construct_control.md": "29487dcd557498ccfbfb1e58dfddd9b820db8aa9387fba3fafd6d068ee079928"
+      },
+      "notes": []
+    },
+    {
+      "exhibit_id": "tbl5_deep_recurrent",
+      "title": "Deep-recurrent negative-retention result",
+      "kind": "table",
+      "placement": "MAIN",
+      "claim_ids": [
+        "H2-5"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "outputs/final_v1_1_reporting_amendment/sensitivity__deep_recurrent_retention__per_arm.csv",
+        "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet"
+      ],
+      "source_tables": [
+        "tbl5_deep_recurrent.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": "POST-FREEZE SENSITIVITY (NEGATIVE RESULT)",
+      "statistic_definitions": {
+        "strict_accuracy": "correct / n at realised model_tat \u2265 512",
+        "wilson95": "Wilson score interval, z = 1.96"
+      },
+      "generated_files": {
+        "tbl5_deep_recurrent.md": "33e3f2018f8533f41087564183407788eafcd36c144294ac21e13fcd9bf49bae"
+      },
+      "notes": [
+        "near-zero accuracy is shown WITH its uncertainty interval, never as a bare '0'."
+      ]
+    },
+    {
+      "exhibit_id": "appendix_A_H1_sensitivities",
+      "title": "H1 sensitivities",
+      "kind": "table",
+      "placement": "APPENDIX",
+      "claim_ids": [
+        "H1-1",
+        "H1-2"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "final_audit/FINAL_LOCKED/final_h1_h1_sensitivity_excl_temporal.csv",
+        "final_audit/FINAL_LOCKED/final_h1_h1_sensitivity_temporal_answered_valid.csv",
+        "outputs/final_v1_1_reporting_amendment/h1_sensitivity__exclude_compound_relational__contrasts.csv",
+        "outputs/final_v1_1_reporting_amendment/robustness__per_seed_headline__a_transition_by_seed.csv"
+      ],
+      "source_tables": [
+        "appAH1_exclude_temporal_FROZEN.csv",
+        "appAH1_exclude_compound_relational_POSTFREEZE.csv",
+        "appAH1_answered_valid_all_types_FROZEN.csv",
+        "appAH1_a_transition_by_seed_POSTFREEZE.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": "mixed: exclude-compound-relational is POST-FREEZE SENSITIVITY",
+      "statistic_definitions": {
+        "contrasts": "same estimator as Table 2, on the reduced fact-type set; Holm within family"
+      },
+      "generated_files": {
+        "appendix_A_H1_sensitivities.md": "30d429ef5ca56ed5e110b7b7e6624ddd9fdb7480225ff865c5e4216cfc2be987"
+      },
+      "notes": []
+    },
+    {
+      "exhibit_id": "appendix_A_H2a_transition_width_amendment",
+      "title": "H2 transition-width amendment (Option A)",
+      "kind": "table",
+      "placement": "APPENDIX",
+      "claim_ids": [
+        "H2-2",
+        "H2-3"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "outputs/final_v1_1_reporting_amendment/h2_amend__eligibility.csv",
+        "outputs/final_v1_1_reporting_amendment/h2_amend__width_by_facttype.csv",
+        "outputs/final_v1_1_reporting_amendment/h2_amend__width_summary_median.csv",
+        "outputs/final_v1_1_reporting_amendment/h2_amend__width_seed_sensitivity.csv",
+        "final_audit/FINAL_LOCKED/final_h2_h2_width.csv"
+      ],
+      "source_tables": [
+        "appAH2a_eligibility.csv",
+        "appAH2a_width_by_facttype.csv",
+        "appAH2a_width_summary_median.csv",
+        "appAH2a_width_seed_sensitivity.csv",
+        "appAH2a_FROZEN_pooled_width_RECORD_all_NaN.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": "POST-FREEZE REPORTING AMENDMENT (Option A)",
+      "statistic_definitions": {
+        "90->10 width": "crossing_x(fit, 0.10) \u2212 crossing_x(fit, 0.90) on the isotonic non-increasing strict-accuracy fit vs realised model-tat",
+        "eligibility": "fit_max \u2265 0.90 AND fit_min \u2264 0.10 (from the estimator, not observed convenience)",
+        "summary": "per-arm median over globally-eligible fact types + hierarchical bootstrap CI"
+      },
+      "generated_files": {
+        "appendix_A_H2a_transition_width_amendment.md": "3f2d9b70966e3db7565860d5e684937bfa43b3fe1deedfb8923f7ae594e28a33"
+      },
+      "notes": []
+    },
+    {
+      "exhibit_id": "appendix_A_H2b_residual_exact_failures",
+      "title": "Residual exact-memory failures",
+      "kind": "table",
+      "placement": "APPENDIX",
+      "claim_ids": [
+        "VAL-4"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "outputs/final_v1_1_reporting_amendment/descriptive__residual_fully_exact_failures__*.csv",
+        "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet"
+      ],
+      "source_tables": [
+        "appAH2b_overall.csv",
+        "appAH2b_by_fact_type.csv",
+        "appAH2b_by_intended_target.csv",
+        "appAH2b_by_architecture.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": "DESCRIPTIVE ROBUSTNESS / LIMITATION",
+      "statistic_definitions": {
+        "residual failure": "correct == 0 among rows with target_fully_exact_through_generation == True (schema.derive_boundary_conditions)"
+      },
+      "generated_files": {
+        "appendix_A_H2b_residual_exact_failures.md": "f0de4c858b25d052992f7a7e29858f4b6adca4e08849b16b5f26dbfd5691cdf3"
+      },
+      "notes": []
+    },
+    {
+      "exhibit_id": "appendix_A_H3_calibration_detail",
+      "title": "H3 calibration detail",
+      "kind": "table",
+      "placement": "APPENDIX",
+      "claim_ids": [
+        "H3-3",
+        "H3-1"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "final_audit/FINAL_LOCKED/final_h3_h3_gap_change.csv",
+        "final_audit/FINAL_LOCKED/final_h3_h3_by_pressure_answered_valid.csv",
+        "final_audit/FINAL_LOCKED/final_h3_h3_abstention_confidence.csv",
+        "outputs/final_v1_1_reporting_amendment/robustness__per_seed_headline__h3_appropriate_abstention_by_seed.csv"
+      ],
+      "source_tables": [
+        "appAH3_gap_change.csv",
+        "appAH3_by_pressure_answered_valid.csv",
+        "appAH3_abstention_confidence.csv",
+        "appAH3_abstention_by_seed.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": null,
+      "statistic_definitions": {
+        "gap_change": "hierarchical bootstrap CI on \u0394(confidence \u2212 accuracy), answered-valid only",
+        "ECE": "10 equal-width bins (Guo et al. 2017); CWR threshold 0.5 (PROVISIONAL)"
+      },
+      "generated_files": {
+        "appendix_A_H3_calibration_detail.md": "ef3de4fcddddf074c82b180522c53159204053facdfcf37de2587a4a82fccb42"
+      },
+      "notes": []
+    },
+    {
+      "exhibit_id": "appendix_A_VAL_control_behaviour",
+      "title": "Transformer control + temporal bias",
+      "kind": "table",
+      "placement": "APPENDIX",
+      "claim_ids": [
+        "VAL-1",
+        "VAL-3",
+        "VAL-2"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "outputs/final_v1_1_reporting_amendment/disclosure__transformer_malformed__*.csv",
+        "outputs/final_v1_1_reporting_amendment/disclosure__temporal_counterbalancing__*.csv",
+        "outputs/final_v1_1_reporting_amendment/disclosure__compound_relational_control_warning__*.csv"
+      ],
+      "source_tables": [
+        "appAVAL_transformer_malformed_by_pressure.csv",
+        "appAVAL_malformed_per_arm.csv",
+        "appAVAL_transformer_malformed_subtypes.csv",
+        "appAVAL_temporal_control_subgroups.csv",
+        "appAVAL_compound_relational_by_seed.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": "LIMITATION / DISCLOSURE",
+      "statistic_definitions": {
+        "malformed subtype": "frozen score_row branch (empty / negation / >4 words / unrecognised value)"
+      },
+      "generated_files": {
+        "appendix_A_VAL_control_behaviour.md": "1da3d1ec63ca5d9cbbae34b6829ce7c4a5768c6376443b8d252390f5017189a9"
+      },
+      "notes": []
+    },
+    {
+      "exhibit_id": "appendix_A_REPRO_integrity",
+      "title": "Integrity & reproducibility statement",
+      "kind": "table",
+      "placement": "APPENDIX",
+      "claim_ids": [
+        "(provenance)"
+      ],
+      "scripts": [
+        "scripts/build_publication_exhibits.py"
+      ],
+      "source_files": [
+        "final_audit/V1_1_LOCKED/V1_1_LOCK_MANIFEST.json",
+        "outputs/final_v1_1_reporting_amendment/reproduced__plumbing_gates.csv",
+        "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet"
+      ],
+      "source_tables": [
+        "appAREPRO_integrity.csv",
+        "appAREPRO_reproduced_plumbing_gates.csv"
+      ],
+      "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+      "analysis_versions": [
+        "1.0",
+        "1.1"
+      ],
+      "post_freeze_status": null,
+      "statistic_definitions": {
+        "re-score": "evaluate.score_row applied to every stored (prediction, gold); compared to stored correct/abstained/malformed"
+      },
+      "generated_files": {
+        "appendix_A_REPRO_integrity.md": "62567d9ffdf5f34f580c6dab004fc80c8e33ab12da53188c3b18099c2bc3f83a"
+      },
+      "notes": []
+    }
+  ]
+}

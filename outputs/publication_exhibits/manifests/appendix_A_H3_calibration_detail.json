@@ -1,0 +1,39 @@
+{
+  "exhibit_id": "appendix_A_H3_calibration_detail",
+  "title": "H3 calibration detail",
+  "kind": "table",
+  "placement": "APPENDIX",
+  "claim_ids": [
+    "H3-3",
+    "H3-1"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "final_audit/FINAL_LOCKED/final_h3_h3_gap_change.csv",
+    "final_audit/FINAL_LOCKED/final_h3_h3_by_pressure_answered_valid.csv",
+    "final_audit/FINAL_LOCKED/final_h3_h3_abstention_confidence.csv",
+    "outputs/final_v1_1_reporting_amendment/robustness__per_seed_headline__h3_appropriate_abstention_by_seed.csv"
+  ],
+  "source_tables": [
+    "appAH3_gap_change.csv",
+    "appAH3_by_pressure_answered_valid.csv",
+    "appAH3_abstention_confidence.csv",
+    "appAH3_abstention_by_seed.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": null,
+  "statistic_definitions": {
+    "gap_change": "hierarchical bootstrap CI on \u0394(confidence \u2212 accuracy), answered-valid only",
+    "ECE": "10 equal-width bins (Guo et al. 2017); CWR threshold 0.5 (PROVISIONAL)"
+  },
+  "generated_files": {
+    "appendix_A_H3_calibration_detail.md": "ef3de4fcddddf074c82b180522c53159204053facdfcf37de2587a4a82fccb42"
+  },
+  "notes": []
+}

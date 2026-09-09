@@ -1,0 +1,34 @@
+{
+  "exhibit_id": "appendix_A_REPRO_integrity",
+  "title": "Integrity & reproducibility statement",
+  "kind": "table",
+  "placement": "APPENDIX",
+  "claim_ids": [
+    "(provenance)"
+  ],
+  "scripts": [
+    "scripts/build_publication_exhibits.py"
+  ],
+  "source_files": [
+    "final_audit/V1_1_LOCKED/V1_1_LOCK_MANIFEST.json",
+    "outputs/final_v1_1_reporting_amendment/reproduced__plumbing_gates.csv",
+    "final_audit/FINAL_LOCKED/results_FINAL_92160.parquet"
+  ],
+  "source_tables": [
+    "appAREPRO_integrity.csv",
+    "appAREPRO_reproduced_plumbing_gates.csv"
+  ],
+  "raw_artifact_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "analysis_versions": [
+    "1.0",
+    "1.1"
+  ],
+  "post_freeze_status": null,
+  "statistic_definitions": {
+    "re-score": "evaluate.score_row applied to every stored (prediction, gold); compared to stored correct/abstained/malformed"
+  },
+  "generated_files": {
+    "appendix_A_REPRO_integrity.md": "62567d9ffdf5f34f580c6dab004fc80c8e33ab12da53188c3b18099c2bc3f83a"
+  },
+  "notes": []
+}
