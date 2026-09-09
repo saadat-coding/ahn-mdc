@@ -1,0 +1,5 @@
+architecture,summary,eligible_fact_types,n_eligible,median_width_tokens,ci_low,ci_high,frac_finite
+deltanet,median,"contradictory, entity-attribute, numerical",3,71.37,68.22,73.48,1.0
+gated_deltanet,median,"contradictory, entity-attribute, numerical",3,61.78,58.91,67.09,1.0
+mamba2,median,"contradictory, entity-attribute, numerical",3,73.84,71.47,74.98,1.0
+transformer,median,"contradictory, entity-attribute, numerical",3,32.41,30.45,36.78,1.0

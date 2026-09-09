@@ -1,0 +1,5 @@
+architecture,region,n,correct,strict_acc,wilson95_low,wilson95_high,abstention_rate,malformed_rate,wrong_valid_n,mean_conf_wrong_valid
+deltanet,model_tat >= 512 (=2W),3542,0,0.0,0.0,0.00108,0.9836,0.0,58,0.4871
+gated_deltanet,model_tat >= 512 (=2W),3542,0,0.0,0.0,0.00108,0.9788,0.0,75,0.5534
+mamba2,model_tat >= 512 (=2W),3542,1,0.00028,5e-05,0.0016,0.9771,0.0,80,0.4072
+transformer,model_tat >= 512 (=2W),3542,3,0.00085,0.00029,0.00249,0.8899,0.0593,177,0.5812

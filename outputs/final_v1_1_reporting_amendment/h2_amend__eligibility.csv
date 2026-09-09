@@ -1,0 +1,21 @@
+architecture,fact_type,n_levels,fit_max,fit_min,reaches_lo,reaches_hi,eligible,x_at_0_90,x_at_0_50,x_at_0_10,width_point,reason
+deltanet,contradictory,12,1.0,0.0,True,True,True,194.14,253.55,265.51,71.37,eligible
+gated_deltanet,contradictory,12,1.0,0.0,True,True,True,203.12,247.02,264.9,61.78,eligible
+mamba2,contradictory,12,1.0,0.0,True,True,True,191.71,253.76,265.55,73.84,eligible
+transformer,contradictory,12,1.0,0.0,True,True,True,190.04,207.53,219.4,29.36,eligible
+deltanet,entity-attribute,12,1.0,0.0,True,True,True,209.5,251.89,263.67,54.17,eligible
+gated_deltanet,entity-attribute,12,1.0,0.0,True,True,True,214.71,253.95,264.2,49.49,eligible
+mamba2,entity-attribute,12,1.0,0.0,True,True,True,204.9,247.93,263.19,58.29,eligible
+transformer,entity-attribute,12,1.0,0.0,True,True,True,204.33,220.09,236.74,32.41,eligible
+deltanet,multi-hop,12,0.862,0.0,False,True,False,,204.38,257.62,,fitted ceiling 0.862 < 0.90
+gated_deltanet,multi-hop,12,0.862,0.0,False,True,False,,202.78,258.41,,fitted ceiling 0.862 < 0.90
+mamba2,multi-hop,12,0.862,0.0,False,True,False,,210.8,255.11,,fitted ceiling 0.862 < 0.90
+transformer,multi-hop,12,0.862,0.0,False,True,False,,198.57,219.6,,fitted ceiling 0.862 < 0.90
+deltanet,numerical,12,0.9987,0.0,True,True,True,185.79,219.04,262.79,77.0,eligible
+gated_deltanet,numerical,12,0.9987,0.0,True,True,True,186.82,216.22,262.2,75.38,eligible
+mamba2,numerical,12,0.9987,0.0,True,True,True,186.76,222.45,261.33,74.56,eligible
+transformer,numerical,12,0.9987,0.0,True,True,True,184.57,206.58,220.8,36.22,eligible
+deltanet,temporal,12,0.5677,0.0,False,True,False,,207.5,249.44,,fitted ceiling 0.568 < 0.90
+gated_deltanet,temporal,12,0.5677,0.0,False,True,False,,239.47,261.65,,fitted ceiling 0.568 < 0.90
+mamba2,temporal,12,0.5677,0.0013,False,True,False,,207.03,259.6,,fitted ceiling 0.568 < 0.90
+transformer,temporal,12,0.5677,0.0,False,True,False,,204.93,230.37,,fitted ceiling 0.568 < 0.90

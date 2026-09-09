@@ -1,0 +1,9 @@
+{
+  "label": "LIMITATION / DISCLOSURE \u2014 task-difficulty ceiling; retained in H1 primary",
+  "warning_drivers": [
+    "strict 0.842 < pass_strict 0.85",
+    "abstention 0.115 > warn_abstention 0.1"
+  ],
+  "fail_threshold_crossed": false,
+  "in_h1_primary": true
+}

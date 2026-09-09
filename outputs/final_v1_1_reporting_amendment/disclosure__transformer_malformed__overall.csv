@@ -1,0 +1,2 @@
+overall_malformed_rate,at_control_anchors,pooled_across_arms,classification
+0.3959,0.0005,0.126,"CONTROL BEHAVIOUR (no-recurrent-memory degeneration); 0% at in-window anchors; per-arm split mandatory, never cite pooled alone"

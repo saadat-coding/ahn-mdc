@@ -1,0 +1,10 @@
+{
+  "label": "DESCRIPTIVE ROBUSTNESS",
+  "distinct_orderings": 2,
+  "k_seed_spread": {
+    "deltanet": 25.77,
+    "gated_deltanet": 29.28,
+    "mamba2": 21.25,
+    "transformer": 1.92
+  }
+}

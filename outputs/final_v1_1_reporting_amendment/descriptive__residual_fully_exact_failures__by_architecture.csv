@@ -1,0 +1,5 @@
+architecture,fail_n,base_n,fail_rate
+deltanet,2639,8809,0.2996
+gated_deltanet,2475,8873,0.2789
+mamba2,2616,8884,0.2945
+transformer,3506,8409,0.4169

@@ -1,0 +1,6 @@
+fact_type,fail_n,base_n,fail_rate
+contradictory,1619,6975,0.2321
+entity-attribute,886,7430,0.1192
+multi-hop,2668,6472,0.4122
+numerical,2319,6842,0.3389
+temporal,3744,7256,0.516

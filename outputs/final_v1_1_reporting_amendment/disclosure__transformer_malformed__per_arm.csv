@@ -1,0 +1,5 @@
+architecture,malformed_rate
+deltanet,0.0467
+gated_deltanet,0.0136
+mamba2,0.0477
+transformer,0.3959

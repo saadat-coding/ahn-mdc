@@ -1,0 +1,14 @@
+{
+  "label": "POST-FREEZE SENSITIVITY \u2014 H1 excluding compound-relational (multi-hop)",
+  "fact_types": [
+    "contradictory",
+    "entity-attribute",
+    "numerical",
+    "temporal"
+  ],
+  "n_contrasts": 6,
+  "n_significant_holm": 6,
+  "omnibus_dispersion_sd": 0.11154134741448643,
+  "omnibus_p": 0.0004997501249375312,
+  "h1_still_supported": true
+}

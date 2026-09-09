@@ -1,0 +1,2 @@
+gold_is_higher_TrueFalse,gold_first_listed_TrueFalse,density,cells_2x2x2,fully_balanced
+"{False: 24, True: 24}","{False: 24, True: 24}","{'low': 24, 'high': 24}","{(False, False, 'high'): 6, (False, False, 'low'): 6, (False, True, 'high'): 6, (False, True, 'low'): 6, (True, False, 'high'): 6, (True, False, 'low'): 6, (True, True, 'high'): 6, (True, True, 'low'): 6}",True

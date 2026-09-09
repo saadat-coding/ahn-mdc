@@ -1,0 +1,115 @@
+{
+  "analysis_version": "1.1",
+  "frozen_analysis_version": "1.0",
+  "locked_parquet": "/Users/saadatarif/Projects/ahn-mdc/final_audit/FINAL_LOCKED/results_FINAL_92160.parquet",
+  "locked_sha256": "a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e",
+  "n_resamples": 2000,
+  "width_reference_levels": [
+    0.9,
+    0.1
+  ],
+  "h2_globally_eligible_fact_types": [
+    "contradictory",
+    "entity-attribute",
+    "numerical"
+  ],
+  "h2_ineligible": [
+    {
+      "architecture": "deltanet",
+      "fact_type": "multi-hop",
+      "reason": "fitted ceiling 0.862 < 0.90"
+    },
+    {
+      "architecture": "gated_deltanet",
+      "fact_type": "multi-hop",
+      "reason": "fitted ceiling 0.862 < 0.90"
+    },
+    {
+      "architecture": "mamba2",
+      "fact_type": "multi-hop",
+      "reason": "fitted ceiling 0.862 < 0.90"
+    },
+    {
+      "architecture": "transformer",
+      "fact_type": "multi-hop",
+      "reason": "fitted ceiling 0.862 < 0.90"
+    },
+    {
+      "architecture": "deltanet",
+      "fact_type": "temporal",
+      "reason": "fitted ceiling 0.568 < 0.90"
+    },
+    {
+      "architecture": "gated_deltanet",
+      "fact_type": "temporal",
+      "reason": "fitted ceiling 0.568 < 0.90"
+    },
+    {
+      "architecture": "mamba2",
+      "fact_type": "temporal",
+      "reason": "fitted ceiling 0.568 < 0.90"
+    },
+    {
+      "architecture": "transformer",
+      "fact_type": "temporal",
+      "reason": "fitted ceiling 0.568 < 0.90"
+    }
+  ],
+  "h2_width_summary_median": [
+    {
+      "architecture": "deltanet",
+      "summary": "median",
+      "eligible_fact_types": "contradictory, entity-attribute, numerical",
+      "n_eligible": 3,
+      "median_width_tokens": 71.37,
+      "ci_low": 68.22,
+      "ci_high": 73.48,
+      "frac_finite": 1.0
+    },
+    {
+      "architecture": "gated_deltanet",
+      "summary": "median",
+      "eligible_fact_types": "contradictory, entity-attribute, numerical",
+      "n_eligible": 3,
+      "median_width_tokens": 61.78,
+      "ci_low": 58.91,
+      "ci_high": 67.09,
+      "frac_finite": 1.0
+    },
+    {
+      "architecture": "mamba2",
+      "summary": "median",
+      "eligible_fact_types": "contradictory, entity-attribute, numerical",
+      "n_eligible": 3,
+      "median_width_tokens": 73.84,
+      "ci_low": 71.47,
+      "ci_high": 74.98,
+      "frac_finite": 1.0
+    },
+    {
+      "architecture": "transformer",
+      "summary": "median",
+      "eligible_fact_types": "contradictory, entity-attribute, numerical",
+      "n_eligible": 3,
+      "median_width_tokens": 32.41,
+      "ci_low": 30.45,
+      "ci_high": 36.78,
+      "frac_finite": 1.0
+    }
+  ],
+  "h1_exclude_compound_relational": {
+    "label": "POST-FREEZE SENSITIVITY \u2014 H1 excluding compound-relational (multi-hop)",
+    "fact_types": [
+      "contradictory",
+      "entity-attribute",
+      "numerical",
+      "temporal"
+    ],
+    "n_contrasts": 6,
+    "n_significant_holm": 6,
+    "omnibus_dispersion_sd": 0.11154134741448643,
+    "omnibus_p": 0.0004997501249375312,
+    "h1_still_supported": true
+  },
+  "plumbing_gates_blocking": 0
+}
