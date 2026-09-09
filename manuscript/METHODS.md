@@ -1,370 +1,213 @@
 # Methods
 
-All statements trace to the locked experiment artifact
-(`final_audit/FINAL_LOCKED/results_FINAL_92160.parquet`, SHA-256
-`a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e`), the frozen
-analysis outputs (`final_audit/FINAL_LOCKED/final_*`, analysis version 1.0), the
-approved post-freeze reporting amendment
-(`outputs/final_v1_1_reporting_amendment/`, analysis version 1.1), and the frozen
-configuration and code. Numerical statements in this section are cross-referenced
-in `manuscript/RESULTS_TRACEABILITY.md`.
+All numerical statements trace to the locked experiment artifact
+(`results_FINAL_92160.parquet`, SHA-256 `a72fd43e…`), the frozen analysis outputs
+(version 1.0), or the approved post-freeze reporting amendment (version 1.1;
+§2.5). Implementation, validation, and provenance detail omitted here for space is
+in `manuscript/METHODS_EXTENDED.md`; per-number sourcing is in
+`manuscript/RESULTS_TRACEABILITY.md`. One fact type is called
+**compound-relational** throughout; its data key in the released artifact and code
+is `multi-hop`, retained unchanged for reproducibility (§2.2).
 
-Terminology note: one fact type is referred to throughout the manuscript as
-**compound-relational**. Its data key in the released artifact and code is
-`multi-hop`; the key is retained for reproducibility and is not a claim about the
-task (§2.4).
-
-## 2.1 Research questions and hypotheses
+## 2.1 Experimental setup and architectures
 
 We study how retrieval from an Adaptive Hybrid Neural (AHN) recurrent memory
 degrades as the target of a query is pushed out of the model's exact-attention
-window, relative to a matched Transformer that has no recurrent memory. Three
-pre-registered hypotheses were tested.
+window, relative to a matched Transformer with no recurrent memory. Three
+pre-registered hypotheses were tested:
 
-- **H1 (non-uniform degradation).** Different information types do not degrade at
+- **H1 (non-uniform degradation).** Information types do not lose task accuracy at
   the same rate as memory pressure rises.
-- **H2 (transition dynamics).** The retrieval-accuracy collapse is concentrated in
-  a narrow pressure region rather than spread gradually, and the AHN recurrent
-  path changes where the collapse occurs and how much accuracy survives near the
-  window.
-- **H3 (behavioural signalling).** As memory degrades, the model's behaviour
-  increasingly signals that its memory is unreliable (through abstention rather
-  than confident error), more so for AHN than for the no-recurrent-memory
-  baseline.
-
-The design, endpoints, analysis code, evaluation set, prompt, scorer, and the
-sliding-window setting were frozen before the full run (frozen 2026-09-05;
-`config/experiment.yaml` `final:` block; `config/final_design_manifest.json`;
-`protocol/final_experiment_design.md`). One reporting metric was undefined on the
-collected data and was corrected by a documented post-freeze amendment that did
-not alter any raw evidence or any primary endpoint (§2.12).
-
-## 2.2 AHN architectures and Transformer control
+- **H2 (transition dynamics).** The accuracy collapse is concentrated in a narrow
+  pressure region rather than spread gradually, and the AHN recurrent path changes
+  where the collapse falls and how much accuracy survives near the window.
+- **H3 (behavioural signalling).** As memory degrades, model behaviour
+  increasingly signals unreliable memory through abstention rather than confident
+  error, more so for AHN than for the no-recurrent-memory baseline.
 
 The base model is `Qwen/Qwen2.5-3B-Instruct`. AHN augments a Transformer with a
 fixed-size recurrent state that summarises tokens evicted from a sliding
-exact-attention window; the recurrent update is one of three published
-mechanisms. We evaluate four arms:
+exact-attention window. We evaluate four arms: the **Transformer baseline** (base
+model, no recurrent module, pure truncation past the window) and three **AHN**
+arms differing only in the published recurrent mechanism — **AHN-Mamba2**,
+**AHN-DeltaNet**, and **AHN-GatedDeltaNet** (checkpoints
+`ByteDance-Seed/AHN-{Mamba2,DN,GDN}-for-Qwen-2.5-Instruct-3B`, each the published
+module merged onto the base weights). All arms share decoding settings and the
+forced window (§2.2); the recurrent mechanism is the only intended difference. The
+AHN modules differ in parameter count by ~10% (11.8–13.0 M) and were
+self-distilled by the original authors; both are disclosed as confounds ([CITE]).
 
-| arm (manuscript) | recurrent mechanism | checkpoint | recurrent-module parameters |
-|---|---|---|---|
-| AHN-Mamba2 | Mamba2 | `ByteDance-Seed/AHN-Mamba2-for-Qwen-2.5-Instruct-3B` | 11.9 M |
-| AHN-DeltaNet | DeltaNet | `ByteDance-Seed/AHN-DN-for-Qwen-2.5-Instruct-3B` | 11.8 M |
-| AHN-GatedDeltaNet | GatedDeltaNet | `ByteDance-Seed/AHN-GDN-for-Qwen-2.5-Instruct-3B` | 13.0 M |
-| Transformer (baseline) | none | base model, no AHN module | 0 |
+Design, endpoints, analysis code, evaluation set, prompt, scorer, and window
+setting were frozen before the full run (2026-09-05). One reporting metric was
+undefined on the collected data and was corrected by a documented post-freeze
+amendment that altered no raw evidence and no primary endpoint (§2.5).
 
-Each AHN checkpoint is the published recurrent module merged onto the base
-weights. The Transformer arm is the identical base model with the same forced
-sliding-window setting (§2.3) and no recurrent module; past the window it has no
-mechanism to access evicted tokens (pure truncation). All arms share
-`torch_dtype = float16`, `attn_implementation = sdpa`, `ahn_position = prefix`,
-`sliding_window_type = fixed`, and the decoding configuration in §2.5; the
-recurrent mechanism is the only intended difference. The AHN parameter counts
-differ by ~10% and the modules were self-distilled by the original authors; both
-are disclosed as confounds ([CITE AHN paper]).
+## 2.2 Evaluation tasks and memory pressure
 
-## 2.3 Memory-pressure experimental design
+**Tasks.** The evaluation set is **240 synthetic items**, generated
+deterministically, 48 per fact type, balanced across a low/high distractor-density
+factor and three target positions. Each item is one **target sentence** plus a
+question over it; distractors never contain the target answer string. The five
+fact types: **numerical** (exact digit string), **entity-attribute** (closed
+colour set), **contradictory** (closed city set, "lived in X … now lives in Y"),
+**temporal** (two-alternative order judgement), and **compound-relational** (closed
+company set, "A manages B. B works for C.").
 
-For every arm the model's sliding exact-attention window is forced to
+**Compound-relational is not a genuine multi-hop reasoning task.** Its target is a
+single co-located two-clause sentence that moves through the context as one span;
+answering requires resolving both clauses of that sentence, not retrieving two
+facts at different positions. We disclose an in-window difficulty ceiling for it
+(Results §3.6). The temporal type has a known directional response preference; its
+two nuisance factors are counterbalanced 24/24 against the gold in an exact 2×2×2
+design, so the preference nets to chance (Results §3.6).
+
+**Memory pressure.** For every arm the sliding exact-attention window is forced to
 **W = 256 tokens** and verified against the checkpoint at load time. **W is an
-architectural reference, not a hypothesis about where retrieval fails.** A merged
-AHN checkpoint otherwise inherits the base model's much larger native window, so
-without this setting the target would never leave exact attention.
+architectural reference, not a hypothesis about where retrieval fails**; a merged
+AHN checkpoint otherwise inherits the base model's much larger native window.
+Pressure is applied by inserting a block of whole distractor sentences after the
+target and growing it to hit the intended pressure levels; trajectories are nested
+(a lower level's block is a prefix of the next level's).
 
-Memory pressure is applied by placing a block of distractor sentences after the
-target sentence, so that increasing the block size pushes the target further out
-of the exact window. The block is composed of whole distractor sentences drawn
-from a per-item pool of 4,000 (§2.4); it is grown to hit a set of intended
-pressure levels (§2.8). Trajectories are nested: for a given item and seed, the
-distractor block at a lower pressure level is a prefix of the block at the next
-level.
+**Prompt and generation.** Every trial uses one frozen prompt template (SHA-256
+`5a67ce69…`: context sentences, the question, a one-line per-type answer hint, and
+an instruction to reply exactly "I don't know" if the answer is not determinable).
+Generation is greedy and deterministic (`max_new_tokens = 12`, stop on newline).
+Confidence is the greedy sequence probability (provisional; §2.4).
 
-## 2.4 Evaluation dataset and fact types
+## 2.3 Scoring and experimental grid
 
-The evaluation set is 240 synthetic items, generated deterministically (seed 0),
-48 per fact type, balanced 120/120 across a low/high distractor-density factor and
-across three target positions. Distractors never contain the target's answer
-string (collision control). Each item is a single **target sentence** plus a
-question over that sentence. The five fact types:
+**Outcome classification.** Scoring is a deterministic function of the stored
+generation (`evaluate.score_row`, version 1.0). The first non-empty line is
+lightly cleaned and each trial is assigned **exactly one** of four outcomes:
+**correct** (resolves to a single value equal to the canonical gold);
+**incorrect valid answer** (resolves to a single non-gold value); **abstention**
+(exactly a recognised "I don't know" form); **malformed** (empty, negation,
+longer than four words, or not resolvable to one recognised value).
 
-| fact type (manuscript) | data key | answer form | target / query example |
-|---|---|---|---|
-| numerical | `numerical` | exact digit string | "Person_0's employee ID is 100000." / "What is Person_0's employee ID?" |
-| entity-attribute | `entity-attribute` | closed set (5 colours) | "Person_0's favourite colour is blue." / "…favourite colour?" |
-| contradictory | `contradictory` | closed set (cities) | "Person_0 lived in Paris. Person_0 now lives in London." / "…where do they live now?" |
-| temporal | `temporal` | one of two named entities | "Person_0 arrived before Person_1." / "Who arrived first?" |
-| compound-relational | `multi-hop` | closed set (5 companies) | "Person_3 manages Person_4. Person_4 works for Google." / "Which company does Person_3's subordinate work for?" |
+**Strict production accuracy** is the fraction scored *correct*; **abstentions and
+malformed outputs both count as failures**. This is the pre-registered primary
+accuracy endpoint for H1 and H2, with no chance correction and no baseline
+adjustment. It measures end-to-end task performance and does not separate loss of
+the stored value from a tendency to abstain; **answered-valid accuracy** (over
+trials that produced a parseable answer) is a pre-registered secondary
+sensitivity, never a replacement. Abstention confidence is analysed separately and
+never pooled with factual confidence (§2.4).
 
-**Compound-relational is not a multi-hop reasoning benchmark.** Its target is one
-co-located two-clause sentence ("A manages B. B works for C.") that moves through
-the context as a single span; the query requires both clauses of that one
-sentence, not retrieval of two facts at different positions. We report it as a
-compound-relational retrieval task and disclose an in-window difficulty ceiling
-(§2.13, Results §3.6).
+**Grid.** The full grid is **4 architectures × 240 items × 8 seeds × 12 intended
+pressure targets = 92,160 trials**. The 12 intended targets (model tokens) are
+`[150, 180, 205, 220, 235, 250, 265, 285, 315, 380, 520, 760]`: two control
+anchors (150, 180), six transition targets (205–285), four recurrent anchors
+(315–760). They were chosen from architecture geometry, not tuned to any pilot.
+The realised artifact is the complete cross-product with no missing or duplicated
+cell and a constant scorer and window value (§2.6).
 
-The temporal type is a two-alternative choice. Its two nuisance factors — whether
-the gold entity is the higher-numbered person, and whether it is listed first in
-the question — are assigned from a density-stratified, seed-shuffled plan that
-balances them 24/24 against the gold and produces an exact 2x2x2 design (6 items
-per cell). The model has a documented directional response preference (favouring
-the lower-numbered / first-listed candidate) that this counterbalancing nets to
-chance; it is reported, not engineered away (§2.13; [CITE temporal repair note]).
+**Pressure coordinate.** Curves and fits use the **realised**
+`model_tokens_after_target` — every token after the target span in the tokenised
+input. `intended_model_tokens_after_target` is the grouping key only; realised
+values track intended closely. Separately, an **empirical performance knee K** is
+estimated from the data as the pressure at which pooled strict accuracy crosses
+0.5. **K is a descriptive per-run quantity and is not W.** We do not describe the
+collapse as occurring "at" a compression threshold and do not describe compression
+as "beginning at K".
 
-## 2.5 Prompting and generation
+## 2.4 Statistical analyses
 
-Every trial uses one frozen prompt template (SHA-256 of the template plus the
-per-type answer hints: `5a67ce69…`, recorded in the design manifest). The
-template lists the context sentences, states the question, appends a one-line
-per-type answer hint ("Reply with only the …"), and instructs the model to reply
-with exactly "I don't know" if the answer cannot be determined from the context.
-The prompt is wrapped in the model's chat template.
+Uncertainty for all primary quantities is a **two-level cluster bootstrap** (2,000
+resamples, percentile 95% intervals, deterministic seeding): item clusters (240)
+are resampled, then seed realisations within each sampled item, with matched
+architecture × pressure rows travelling with their (item, seed) unit. Two-sided
+bootstrap p-values are Holm-adjusted within each test family. When 0 of 2,000
+resamples exceed the observed statistic the resolution floor is reached and the
+p-value is reported as **p < 0.001**.
 
-Generation is greedy and deterministic: `do_sample = False`, `num_beams = 1`,
-`max_new_tokens = 12`, stop on newline. Confidence for a generation is its
-sequence probability (product of greedy token probabilities); this choice is
-provisional (§2.11).
+**H1.** For each fact type, `A_transition` is the mean strict accuracy over
+intended transition targets `[205, 220, 235, 250, 265]`, pooling the three AHN
+arms (Transformer excluded). The primary test is the 10 pairwise fact-type
+differences in `A_transition`; **H1 is supported if at least one Holm-adjusted
+interval excludes zero**. A companion omnibus permutes fact-type labels across
+items (2,000 permutations) and compares the observed dispersion (SD) of the five
+means to the null; with 0 exceedances it reports the add-one–corrected
+**p = (0+1)/(2000+1) = 5×10⁻⁴**. Pre-registered sensitivities: exclude temporal;
+substitute answered-valid accuracy for all types. A post-freeze sensitivity also
+excludes compound-relational.
 
-## 2.6 Pressure coordinates and the sliding-window reference
+**H2.** The **architecture endpoint** is `A_transition(AHN pooled) −
+A_transition(Transformer)` over the transition interval, paired within (item,
+seed). **Shape** is assessed two ways: a smooth log-linear fit compared by AIC
+against a fit allowed to change slope at W = 256 (lower change-point AIC =
+"concentrated"); and a per-architecture isotonic **transition width**, the token
+distance between the 0.90 and 0.10 crossings of a non-increasing isotonic fit to
+strict accuracy (**the pre-registered *pooled* width is mathematically undefined
+on this dataset**; §2.5). **K** is the isotonic 0.5-crossing of pooled strict
+accuracy per architecture (and, separately, of abstention rate). `A_recurrent` is
+the mean strict accuracy over intended targets ≥ 315; a deep-regime check
+restricts to realised `model_tokens_after_target ≥ 2W` (Wilson interval).
 
-We distinguish three quantities.
+**H3.** Restricted to realised `model_tokens_after_target ≥ W + 16 = 272`:
+`appropriate_abstention_rate` = P(abstention) and `unsignalled_failure_rate` =
+P(incorrect-valid ∨ malformed), per architecture and as six AHN-minus-Transformer
+contrasts (Holm within the family). Secondary calibration (answered-valid trials
+only): `gap_change`, the shift in (mean confidence − mean accuracy) from the
+control anchors to the transition interval; ECE, Brier score, and a
+confidently-wrong rate are descriptive by pressure level. **No mechanistic claim
+is made**: the Transformer has no recurrent memory, so the contrast confounds a
+recurrent state with the AHN distillation recipe, and whether a behavioural
+difference reflects a signal in the recurrent state or a learned abstention policy
+cannot be determined here.
 
-- **`model_tokens_after_target`** (the pressure coordinate): every token after the
-  target span in the tokenised model input — distractors plus the question and
-  instruction block plus the chat-template suffix. Curves are plotted and fits are
-  computed against this realised coordinate.
-- **`intended_model_tokens_after_target`** (the grouping key): the pressure level a
-  trajectory was calibrated to hit. Because per-fact-type prompt overhead differs
-  by ~10 tokens, each intended level maps to a different requested distractor-token
-  count per fact type; calibration was performed with the base tokenizer and no
-  model, and realised values track intended values closely (§2.8, Figure D).
-- **W = 256**: the architectural sliding-window reference.
+## 2.5 Post-freeze H2 reporting amendment (transition width)
 
-Separately, an **empirical performance knee K** is estimated from the data (§2.10)
-as the pressure at which pooled strict accuracy crosses 0.5. **K is a descriptive
-per-run quantity and is not equal to W.** We do not describe the collapse as
-occurring "at" a compression threshold, and we do not describe compression as
-"beginning at K".
+The pre-registered *pooled* 90→10 transition-width statistic returned a non-finite
+value for every architecture — a metric-definition issue, not a data issue. The
+isotonic fit is applied to strict accuracy pooled over all five fact types, and
+that pooled curve peaks near 0.88 because the temporal and compound-relational
+types abstention-saturate while the target is still in the window; with no point
+at or above the 0.90 reference the 0.90 crossing does not exist, and the frozen
+code falls through to a default verdict label. The raw per-architecture curves and
+the AIC shape test are unaffected.
 
-## 2.7 Answer scoring and output classification
+The correction (approved and implemented 2026-09-09, commit `626521a`;
+`protocol/amendment_h2_transition_width.md`) is **reporting-only**. The frozen
+all-NaN output is **preserved verbatim** and its verdict label is discarded. The
+90→10 width is then computed **per fact type per architecture** and reported only
+where the estimator is mathematically defined — **eligibility requires the fitted
+isotonic curve to attain a value ≥ 0.90 and a value ≤ 0.10**, a rule derived from
+the estimator, not chosen from the observed widths. Eligible for all four arms:
+**contradictory, entity-attribute, numerical** (fitted ceilings ≈ 1.0); ineligible:
+**compound-relational** (ceiling 0.862) and **temporal** (0.568), each failing
+only the upper reference because in-window accuracy is capped by abstention.
+Per-type widths use the same hierarchical bootstrap as the other H2 quantities;
+the per-architecture summary is the pre-declared **median** of eligible-type
+widths.
 
-Scoring is a pure deterministic function of the stored raw generation
-(`evaluate.score_row`, scorer version 1.0). The first non-empty line of the
-generation is cleaned (a leading "the answer is" label and wrapping punctuation
-removed). Each trial is assigned **exactly one** of four outcomes:
+The amendment touched no raw evidence and changed no design constant (W, K, strict
+accuracy, pressure coordinate, grid, seeds, scorer, prompt, dataset). It is
+analysis version 1.1, reported alongside the unchanged version 1.0 outputs,
+identified as post-freeze wherever it appears, and is not a new frozen primary
+endpoint.
 
-- **abstention** — the cleaned response is exactly a recognised "I don't know"
-  form.
-- **malformed** — the cleaned response is empty, contains a negation, is longer
-  than four words, or does not resolve to exactly one recognised value for the
-  fact type (this also catches a bare mention of the gold, a question echo, and
-  multiple competing candidates).
-- **correct** — the response resolves to a single value and that value equals the
-  canonicalised gold.
-- **incorrect valid answer** — resolves to a single value that is not the gold.
+## 2.6 Reproducibility and validation (brief)
 
-**Strict production accuracy** is the fraction of trials scored *correct*.
-Abstentions and malformed outputs both count as failures. This is the
-pre-registered primary accuracy endpoint for H1 and H2; there is no chance
-correction and no baseline-adjusted primary (`config/facts.yaml`;
-`protocol/final_experiment_design.md` §5). It is a measure of end-to-end task
-performance, and it deliberately does not attempt to isolate representational
-information loss from a model's tendency to abstain. Where relevant we also report
-**answered-valid accuracy** — accuracy computed only over trials that produced a
-parseable answer (correct or incorrect valid) — as a secondary, pre-registered
-sensitivity, never as a replacement for the primary.
-
-For calibration analyses (§2.11) the confidence of a *correct/incorrect-valid*
-response is treated as factual confidence, and the confidence of an *abstention*
-response (confidence in emitting "I don't know") is analysed separately and never
-pooled with factual confidence.
-
-## 2.8 Experimental grid and replication
-
-The full grid is **4 architectures × 240 items × 8 seeds × 12 intended pressure
-targets = 92,160 trials**. The 12 intended targets are
-`[150, 180, 205, 220, 235, 250, 265, 285, 315, 380, 520, 760]` model tokens,
-grouped as two control anchors (150, 180), six transition targets
-(205–285), and four recurrent anchors (315–760). A seed controls only distractor
-sampling and ordering; given (architecture, item, seed, intended target) a
-trajectory is fully determined, so replication across seeds is independent. The
-grid and the target set were chosen from architecture geometry (window size, the
-observed maximum target span, and the generation length), not tuned to any pilot
-result.
-
-The realised artifact is complete and internally consistent: 92,160 rows, exactly
-23,040 per architecture, the full 4 × 240 × 8 × 12 cross-product with no missing
-and no duplicated cell, a constant scorer version and sliding-window value, and no
-missing values in any scored field (§2.14).
-
-## 2.9 H1 analysis
-
-**Endpoint.** For each fact type, `A_transition` is the mean strict production
-accuracy over the five intended transition targets `[205, 220, 235, 250, 265]`,
-pooling the three AHN architectures; the Transformer is a reference curve and is
-excluded from the pooled endpoint. `A_transition` was computed only for fact types
-that passed the pre-registered in-window control-validity check (§2.13); all five
-types passed the retain-in-primary threshold.
-
-**Test.** The primary test is the set of 10 pairwise fact-type differences in
-`A_transition`. Uncertainty is a two-level cluster bootstrap: item clusters (240)
-are resampled with replacement, then seed realisations are resampled within each
-sampled item; matched architecture × pressure rows travel with their (item, seed)
-unit. 2,000 resamples, percentile 95% intervals, deterministic seeding. Two-sided
-bootstrap p-values are adjusted by Holm within the 10-comparison family. **H1 is
-supported if at least one Holm-adjusted interval excludes zero.** A companion
-omnibus test permutes the fact-type labels across items (2,000 permutations) and
-compares the observed dispersion (standard deviation) of the five `A_transition`
-means to the permutation null.
-
-**Pre-registered sensitivities:** (a) repeat the analysis excluding the temporal
-type; (b) repeat with answered-valid accuracy substituted for all types. A
-post-freeze sensitivity (§2.12) additionally repeats the analysis excluding the
-compound-relational type. Per-seed `A_transition` values are reported for
-robustness.
-
-## 2.10 H2 analysis
-
-**Pre-registered shape endpoint.** The pre-registered primary shape statistic is a
-per-architecture isotonic transition **width**: fit a non-increasing (pool-adjacent
--violators) isotonic curve to pooled strict accuracy against realised
-`model_tokens_after_target` (one balanced cell per intended target), and take the
-token distance between where the fit crosses 0.90 and where it crosses 0.10, with
-a hierarchical bootstrap interval. **This statistic is mathematically undefined on
-the collected data** (the pooled five-type accuracy curve does not reach 0.90;
-§2.12). The frozen output is preserved unchanged and is not interpreted; the shape
-question is addressed instead by the amendment in §2.12 and by two auxiliary
-frozen analyses:
-
-- **Shape test.** A smooth log-linear fit is compared, by AIC, with a fit allowed
-  to change slope at W = 256. A lower AIC for the change-point fit is reported as
-  "threshold-like".
-- **Empirical knee K.** The isotonic 0.5-crossing of pooled strict accuracy per
-  architecture, with a hierarchical bootstrap interval; and, separately, the
-  isotonic 0.5-crossing of abstention rate.
-
-**Architecture endpoint.** `A_transition(AHN pooled) − A_transition(Transformer)`
-over the transition interval [200, 270], with a hierarchical bootstrap interval
-(paired within (item, seed)).
-
-**Recurrent-regime accuracy.** `A_recurrent` is the mean strict accuracy over
-intended targets ≥ 315, per architecture, with a hierarchical bootstrap interval;
-and a deep-regime check restricts to realised `model_tokens_after_target ≥ 2W`
-(512) with an exact Wilson interval on the binomial (§2.13).
-
-## 2.11 H3 analysis
-
-**Behavioural primary.** Restricted to trials with realised
-`model_tokens_after_target ≥ W + 16 = 272`:
-
-- `appropriate_abstention_rate` = P(the trial is an abstention);
-- `unsignalled_failure_rate` = P(the trial is an incorrect valid answer or a
-  malformed output).
-
-Both rates are reported per architecture with hierarchical bootstrap intervals,
-and as six contrasts (each AHN architecture minus the Transformer, on both rates),
-with Holm adjustment within the 6-contrast family. Per-seed rates are reported for
-robustness.
-
-**Secondary calibration.** On answered-valid trials only, `gap_change` is the
-change in (mean confidence − mean accuracy) from the pooled control anchors
-{150, 180} to the transition interval [200, 270], per architecture, with a
-hierarchical bootstrap interval. Expected calibration error (10 equal-width bins),
-Brier score, and a confidently-wrong rate (confidence threshold 0.5, provisional)
-are reported descriptively by pressure level on answered-valid trials. Confidence
-on abstention responses is reported in a separate table and is never treated as
-factual confidence. The sequence-probability confidence measure is provisional; a
-length-normalised sensitivity is noted as future work.
-
-**No mechanistic claim.** The Transformer arm has no recurrent memory, so the
-architecture contrast confounds the presence of a recurrent state with the
-recurrent-module distillation recipe. Any behavioural difference is reported as a
-description of behaviour; whether it reflects a signal carried in the recurrent
-state or a learned abstention policy cannot be determined from this design and is
-stated as a limitation.
-
-## 2.12 Post-freeze reporting amendment (H2 transition width)
-
-The pre-registered pooled 90→10 transition-width statistic (§2.10) returned a
-non-finite value for every architecture. The cause is a metric-definition issue,
-not a data issue: the isotonic fit is applied to strict accuracy pooled over all
-five fact types, and that pooled curve peaks near 0.88 because the temporal and
-compound-relational types abstention-saturate while the target is still inside the
-window (temporal ≈ 0.38 in-window abstention; compound-relational ≈ 0.12). With no
-point at or above 0.90, the 0.90 crossing does not exist, and the frozen
-implementation then falls through to a default verdict label. The raw
-per-architecture accuracy curves and the AIC shape test are unaffected.
-
-The correction (approved 2026-09-09; implemented at commit `626521a`;
-`protocol/amendment_h2_transition_width.md`) is a **reporting-only** change:
-
-1. The frozen output (`final_h2_h2_width.csv`, all-NaN) is preserved verbatim and
-   is reported as the record; the default verdict label is not used.
-2. The 90→10 width is computed **per fact type per architecture**, and reported
-   only for fact types where the estimator is mathematically defined —
-   **eligibility requires the fitted isotonic curve to attain a value ≥ 0.90 and a
-   value ≤ 0.10**. This rule is derived from the estimator, not chosen from the
-   observed widths.
-3. Eligible for all four architectures: **contradictory, entity-attribute,
-   numerical** (fitted ceilings 1.000, 1.000, 0.999). Ineligible:
-   **compound-relational** (fitted ceiling 0.862) and **temporal** (0.568); both
-   fail only the upper reference, because their in-window accuracy is capped by
-   abstention.
-4. Per-fact-type widths use the same hierarchical (item → seed) bootstrap as the
-   other H2 quantities (2,000 resamples). A per-architecture cross-type summary is
-   the **median** of the eligible-type widths (a fixed choice: robust to a single
-   anomalous type, appropriate for a small discrete set, no equal-precision
-   assumption).
-
-This amendment did not touch the raw artifact, did not change any primary
-endpoint, and did not change W, K, strict accuracy, the pressure coordinate, the
-grid, the seeds, the scorer, the prompt, or the dataset. It is reported as
-analysis version 1.1 alongside the unchanged version 1.0 outputs, and is
-identified as post-freeze wherever it appears.
-
-## 2.13 Robustness and construct-validity analyses
-
-- **Per-fact-type control validity.** For each fact type, retrieval on the pooled
-  control anchors (intended 150 and 180) is checked against pre-registered
-  floors: for non-temporal types, PASS at strict accuracy ≥ 0.85, WARNING in
-  [0.70, 0.85) or with abstention > 0.10 or malformed > 0.05, FAIL (benchmark
-  invalid, excluded from the H1 primary) below 0.70; temporal is judged on
-  answered-valid accuracy with abstention tracked separately.
-- **Temporal counterbalancing.** The 2x2x2 nuisance design is verified balanced in
-  the final item set, and answered-valid accuracy and abstention are reported by
-  nuisance subgroup at the control anchors.
-- **Transformer control behaviour.** The Transformer malformed rate is reported
-  per architecture (never pooled across architectures) and by pressure level, with
-  a malformed-subtype breakdown, and is classified against a pre-registered gate.
-- **Residual in-window failures.** For the subset of trials in which the target
-  span is arithmetically inside the lossless window for the whole trial
-  (`model_tokens_after_target + target span + generated tokens ≤ W`), the failure
-  rate is reported, stratified by fact type, architecture, intended target, and
-  seed.
-- **Deep-recurrent retention.** Restricted to realised
-  `model_tokens_after_target ≥ 2W` (512), correct counts, denominators, and Wilson
-  95% intervals are reported per architecture and per fact type.
-- **Per-seed robustness.** `A_transition` per fact type, K per architecture, and
-  the H3 appropriate-abstention rate per architecture are reported for each of the
-  8 seeds.
-
-## 2.14 Reproducibility and provenance
-
-The raw artifact is content-addressed: SHA-256
-`a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e`. Independent
+The raw artifact is content-addressed (SHA-256 `a72fd43e…`). Independent
 re-scoring of all 92,160 stored generations with the frozen scorer reproduces the
-stored `correct` / `abstained` / `malformed` fields with **0 mismatches**. The
-frozen analysis (version 1.0) reproduces from the locked artifact to within
-floating-point tolerance on all 53 audited quantities (maximum absolute difference
-≈ 5.7 × 10⁻¹⁴). The pre-registered plumbing gates reproduce with 0 blocking
-failures.
+stored outcome fields with **0 mismatches**; the frozen analysis reproduces from
+the locked artifact to ≤ 5.7×10⁻¹⁴ on all 53 audited quantities; the
+pre-registered plumbing gates reproduce with 0 blocking failures.
 
-Generation ran on an NVIDIA L4 GPU with Python 3.12, torch 2.6.0+cu126,
-transformers 4.51.0, flash-attn 2.8.3.post1, mamba-ssm 2.2.5. The exact
+Pre-registered construct and robustness checks (Results §3.6; full detail in
+`METHODS_EXTENDED.md`): a per-fact-type in-window **control-validity** gate
+(PASS / WARNING / FAIL, a FAIL excluding a type from the H1 primary); temporal
+2×2×2 balance; a per-architecture (never pooled) **Transformer malformed-rate**
+classification; a **residual in-window failure** analysis (target span
+arithmetically inside the lossless window throughout the trial); a
+**deep-recurrent** analysis (realised `model_tokens_after_target ≥ 2W`, Wilson
+intervals); and per-seed robustness of the headline quantities.
+
+Generation ran on an NVIDIA L4 GPU (Python 3.12, torch 2.6.0). The
 generation-runtime commit (`d29c6d8…`) is recorded in the artifact provenance but
-is not present in the released repository history; its scientifically relevant
-code is provably identical to the released design commit, since the scorer output,
-the prompt hash, the calibration hash, and every reproduced analysis quantity all
-match. This provenance gap is disclosed as a limitation. The design commit,
-frozen analysis outputs, the post-freeze amendment outputs, and per-file hashes
-are archived in `final_audit/FINAL_LOCKED/` (frozen v1.0) and
-`final_audit/V1_1_LOCKED/` (amendment v1.1).
+absent from the released repository history; its scientifically relevant code is
+provably identical to the released design commit (matching scorer output, prompt
+hash, calibration hash, and every reproduced analysis quantity), and the gap is
+disclosed as a limitation. Frozen v1.0 and v1.1 outputs and per-file hashes are
+archived under `final_audit/FINAL_LOCKED/` and `final_audit/V1_1_LOCKED/`.
