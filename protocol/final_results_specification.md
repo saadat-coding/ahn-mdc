@@ -84,6 +84,17 @@ span, **not** retrieval across separated facts. Do not silently rename stored da
 (all "threshold-like") · `A_recurrent` per arm ≈ 0 · per-type K
 (`repro_h2_knees_by_facttype.csv`) · seed robustness of all of the above.
 
+> **H2 WIDTH AMENDMENT STATUS (2026-09-09):** the Option-A amendment in §12(a) / the
+> decision doc is **APPROVED and IMPLEMENTED** (commit `626521a`;
+> `protocol/amendment_h2_transition_width.md` §13). The frozen pooled width
+> (`final_h2_h2_width.csv`) stays undefined and untouched. Reported instead:
+> per-eligible-fact-type isotonic 90→10 width (eligible = contradictory,
+> entity-attribute, numerical), per-arm **median** 32.4 [30.5, 36.8] (transformer)
+> / 61.8–73.8 (AHN) model tokens, all ≪ 0.5 W. H2 shape status →
+> **SUPPORTED — concentrated** (frozen shape test + amended widths agree). See
+> `outputs/final_v1_1_reporting_amendment/h2_amend__*` and claims register H2-2 / H2-3.
+> No previously approved claim is weakened.
+
 ---
 
 # H3 — Does behavioural uncertainty signalling track retrieval failure?
@@ -122,14 +133,14 @@ never pooled with (2).
 | H1 omnibus permutation | [FROZEN SECONDARY companion] | `final_summary.json` `extras.h1_omnibus` |
 | H1 exclude-temporal | [FROZEN SECONDARY] | `final_h1_h1_sensitivity_excl_temporal.csv` |
 | H1 answered-valid (all types; filename says "temporal") | [FROZEN SECONDARY] | `final_h1_h1_sensitivity_temporal_answered_valid.csv` |
-| H1 exclude-multi-hop | [POST-FREEZE SENSITIVITY] | `AUDIT_OUTPUTS/repro_h1_excl_multihop.csv` |
-| H1 per-seed A_transition | [POST-FREEZE SENSITIVITY] | `AUDIT_OUTPUTS/phase13_a_transition_by_seed.csv` |
-| H1 temporal-only answered-valid (others stay raw strict, literal §6-B) | [POST-FREEZE SENSITIVITY] — not yet computed | team decision |
-| H2 transition width + verdict | [FROZEN PRIMARY] — **UNDEFINED, superseded by amendment** | `final_h2_h2_width.csv` |
+| H1 exclude-compound-relational | [POST-FREEZE SENSITIVITY] — **implemented** `626521a` | `outputs/final_v1_1_reporting_amendment/h1_sensitivity__exclude_compound_relational__*` |
+| H1 per-seed A_transition | [POST-FREEZE SENSITIVITY] | `AUDIT_OUTPUTS/phase13_a_transition_by_seed.csv`, `v1_1/robustness__per_seed_headline__*` |
+| H1 temporal-only answered-valid (others stay raw strict, literal §6-B) | [POST-FREEZE SENSITIVITY] — not yet computed | team decision (optional) |
+| H2 transition width + verdict (pooled) | [FROZEN PRIMARY] — **UNDEFINED (NaN); "intermediate" is a code fall-through; preserved untouched** | `final_h2_h2_width.csv` |
+| H2 transition-width metric replacement (Option A) | [POST-FREEZE REPORTING AMENDMENT] — **approved + implemented** `626521a` | `protocol/amendment_h2_transition_width.md` §13; `v1_1/h2_amend__*` |
+| H2 per-eligible-fact-type 90→10 width + per-arm median + CI + seed sensitivity | [POST-FREEZE REPORTING AMENDMENT] | `v1_1/h2_amend__{eligibility,width_by_facttype,width_summary_median,width_seed_sensitivity}.csv` |
 | H2 K_strict / K_abstention / shape-test / A_recurrent / A_transition gap | [FROZEN SECONDARY], all valid | `final_h2_h2_*.csv`, `final_summary.json` |
-| H2 per-fact-type K & width | [POST-FREEZE SENSITIVITY] | `AUDIT_OUTPUTS/auditorC_h2_per_facttype_transition_width.csv` |
-| H2 per-seed K | [POST-FREEZE SENSITIVITY] | `AUDIT_OUTPUTS/phase13_k_by_seed.csv` |
-| H2 transition-width metric replacement | [POST-FREEZE REPORTING AMENDMENT] — **team sign-off required** | `protocol/amendment_h2_transition_width.md` |
+| H2 per-seed K | [POST-FREEZE SENSITIVITY] | `AUDIT_OUTPUTS/phase13_k_by_seed.csv`, `v1_1/robustness__per_seed_headline__k_strict_by_seed.csv` |
 | H3 behavioural per-arm + contrasts | [FROZEN PRIMARY] | `final_h3_h3_behavioral_*.csv` |
 | H3 gap_change | [FROZEN SECONDARY] | `final_h3_h3_gap_change.csv` |
 | H3 ECE/Brier/CWR by pressure, abstention-confidence | [FROZEN SECONDARY] | `final_h3_h3_by_pressure_answered_valid.csv`, `final_h3_h3_abstention_confidence.csv` |

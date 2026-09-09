@@ -257,3 +257,105 @@ record; the manuscript cites the amendment table instead.
    normal commit (recommended) or a dedicated `analysis-amendments` branch.
 
 **No code is written until items 1–6 are signed off.**
+
+---
+
+## 13. IMPLEMENTATION RECORD (added 2026-09-09 — decision approved; §1–12 unchanged)
+
+Items 1–6 were approved by the team on 2026-09-09 (Option A; per-arm median summary;
+retire "intermediate" from manuscript text; disclosure paragraph §11; land on
+`saadat-pipeline-validation`; `analysis_version → 1.1`). This section **records** the
+implementation. It does not alter the rationale above.
+
+### 13.1 Decision-preservation commit
+`76e5207` — "Protocol: final results specification + reporting-amendment decision
+documents" (the five protocol docs, committed before any amendment code).
+
+### 13.2 Implementation commit
+**`626521a`** — "Analysis v1.1: post-freeze reporting amendments …".
+Files: `src/ahnexp/reporting_amendment.py` (new), `scripts/run_reporting_amendment.py`
+(new), `scripts/verify_frozen_v1_0.py` (new), `tests/test_reporting_amendment.py`
+(new, 12 tests), `outputs/final_v1_1_reporting_amendment/` (result CSVs, nboot=2000).
+No change to `src/ahnexp/{h2_threshold,h1_degradation,h3_calibration,full_run}.py`,
+config, scorer, prompt, dataset, or any frozen file.
+
+### 13.3 Exact formula
+For one `(architecture, fact_type)` subframe:
+1. one balanced cell per frozen pressure level `schema.pressure_group_key`
+   (= `intended_model_tokens_after_target`): `x = mean(model_tokens_after_target)`,
+   `acc = mean(correct)` (raw strict), `n = count`; sort by `x`.
+2. `fit = stats.isotonic_regression(acc, weights=n, increasing=False)` (non-increasing PAVA).
+3. `width = crossing_x(x, fit, 0.10) − crossing_x(x, fit, 0.90)` where `crossing_x`
+   is first-x linear interpolation, NaN if the level is not attained.
+`reporting_amendment._width_9010`. Reference levels `WIDTH_LO_LEVEL = 0.90`,
+`WIDTH_HI_LEVEL = 0.10` are module constants — **not lowered** (that would be Option B).
+
+### 13.4 Eligibility rule (predefined from the estimator, not observed convenience)
+`(architecture, fact_type)` is **eligible** iff, on the fitted isotonic curve,
+`max(fit) ≥ 0.90` **and** `min(fit) ≤ 0.10` — i.e. both crossings mathematically
+exist. `reporting_amendment.h2_width_eligibility` reports `fit_max`, `fit_min`,
+`reaches_lo`, `reaches_hi`, `eligible`, and a `reason` naming the failed
+requirement. "Globally eligible" = eligible for **all four** architectures
+(`globally_eligible_fact_types`), so the cross-architecture summary is like-for-like.
+
+### 13.5 Bootstrap procedure
+`reporting_amendment._hier_bootstrap_nan` — the **identical** resampling scheme to
+`stats.hierarchical_bootstrap` (resample `item_id` clusters with replacement, then
+`seed` realisations within each sampled item; `random_state = 0`;
+`n_resamples = config.statistics.n_resamples = 2000`; matched architecture × pressure
+rows travel with the (item, seed) unit). Difference: NaN-safe — the CI is the
+`[2.5, 97.5]` percentiles of the **finite** resample values, and `frac_finite`
+(fraction of resamples where the width was defined) is reported as a stability
+diagnostic. All eligible cells reported `frac_finite = 1.000`.
+
+### 13.6 Output filenames (`outputs/final_v1_1_reporting_amendment/`)
+- `h2_amend__eligibility.csv` — 20 rows (4 arms × 5 types), `eligible` + `reason`
+- `h2_amend__width_by_facttype.csv` — per (arm, type): `width_tokens`, `ci_low`,
+  `ci_high`, `frac_finite` (ineligible rows present with NaN)
+- `h2_amend__width_summary_median.csv` — per arm: `median_width_tokens` + CI
+- `h2_amend__width_seed_sensitivity.csv` — per-seed median width per arm + `seed_spread`
+- `AMENDMENT_SUMMARY.json` — the machine-readable roll-up
+
+### 13.7 Resulting numbers (nboot = 2000; `frac_finite = 1.000` everywhere)
+
+**Eligibility:** eligible for all four arms — **contradictory, entity-attribute,
+numerical** (`fit_max` 1.000 / 1.000 / 0.999). Ineligible for all four arms —
+**multi-hop** (`fit_max` 0.862 < 0.90) and **temporal** (`fit_max` 0.568 < 0.90);
+both fail the **upper** reference only (`min(fit) = 0` for every type).
+
+**Per-eligible-type 90→10 width (model tokens) [95 % CI]:**
+
+| arm | contradictory | entity-attribute | numerical | **median** |
+|---|---|---|---|---|
+| transformer | 29.4 [27.7, 31.2] | 32.4 [30.4, 39.2] | 36.2 [34.7, 37.9] | **32.4 [30.5, 36.8]** |
+| deltanet | 71.4 [68.6, 73.4] | 54.2 [50.6, 57.1] | 77.0 [75.3, 78.4] | **71.4 [68.2, 73.5]** |
+| mamba2 | 73.8 [71.7, 75.7] | 58.3 [55.8, 64.8] | 74.6 [72.4, 76.3] | **73.8 [71.5, 75.0]** |
+| gated_deltanet | 61.8 [59.1, 66.9] | 49.5 [42.2, 54.2] | 75.4 [73.4, 77.0] | **61.8 [58.9, 67.1]** |
+
+**Seed sensitivity** (per-seed median width): transformer spread 9.3 tokens
+(30.0–39.3); AHN spread 12.7–15.2 tokens. transformer < every AHN arm in every seed.
+
+**Frozen shape test (preserved separately, unchanged):** all four arms
+"threshold-like" (`final_h2_h2_shape_break_at_W.csv`).
+
+### 13.8 Does the amendment alter any previously approved claim?
+**No approved claim is weakened or reversed.**
+- **H2-3 (transition width)** moves from **UNDETERMINED** → **concentrated
+  (post-freeze reporting amendment)**: every eligible width (29–77 tokens; per-arm
+  median 32–74) is far below 0.5 W = 128, i.e. "concentrated" by the frozen rule's
+  own numeric criterion. The frozen pooled width stays undefined and the frozen
+  `final_h2_h2_width.csv` is untouched and cited as the record.
+- **H2-2 (threshold-like shape)** is **strengthened** — now supported by the frozen
+  shape test *and* the amended per-type widths.
+- **H2-1, H2-4, H2-5** unchanged.
+- The new numbers also make the AHN-vs-transformer contrast sharper (AHN transitions
+  ≈ 2× wider than the transformer's but still narrow), consistent with, not
+  contradicting, H2-1.
+This is a correction of a broken reporting metric, **not** a new frozen primary
+endpoint and **not** a replacement of an inconvenient result.
+
+### 13.9 Frozen v1.0 preserved
+`scripts/verify_frozen_v1_0.py` recomputes 53 frozen H1/H2/H3/control quantities
+from the locked parquet with the current code: **53/53 identical**, max \|Δ\|
+5.7×10⁻¹⁴. `final_h2_h2_width.csv` still reproduces as all-NaN (the frozen result is
+preserved exactly, including its defect). Locked SHA-256 `a72fd43e…` unchanged.

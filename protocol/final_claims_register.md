@@ -21,7 +21,7 @@ All statistics reproduce from the locked parquet to \|Δ\| ≤ 1e-14 (`final_aud
 - **Evidence [A]:** `final_summary.json` (`h1_omnibus_p`, `extras.h1_omnibus`); `final_h1_h1_contrasts.csv`.
 - **Statistic:** label-permutation on the SD of the five A_transition means — SD = 0.1273, **p = 0.0005** (0/2000); **all 10** pairwise Holm-adjusted 95 % CIs exclude 0.
 - **Uncertainty:** 2000-permutation p; percentile 95 % hierarchical-bootstrap CIs on each contrast; `random_state = 0`.
-- **Sensitivity:** exclude-temporal 6/6 sig (`final_h1_h1_sensitivity_excl_temporal.csv`); exclude-multi-hop 6/6 sig (`repro_h1_excl_multihop.csv`); answered-valid all-types 8/10 sig (`final_h1_h1_sensitivity_temporal_answered_valid.csv`); ordering stable in 7/8 seeds (`phase13_a_transition_by_seed.csv`).
+- **Sensitivity:** exclude-temporal 6/6 sig (`final_h1_h1_sensitivity_excl_temporal.csv`); **exclude-compound-relational 6/6 sig, omnibus p = 0.0005** [POST-FREEZE SENSITIVITY, commit `626521a`, `outputs/final_v1_1_reporting_amendment/h1_sensitivity__exclude_compound_relational__*`]; answered-valid all-types 8/10 sig (`final_h1_h1_sensitivity_temporal_answered_valid.csv`); ordering stable in 7/8 seeds (`phase13_a_transition_by_seed.csv`).
 - **Required caveat:** the endpoint is raw strict accuracy, which blends retrieval failure with abstention propensity; report the answered-valid sensitivity beside it.
 - **Allowed wording:** "fact types degrade non-uniformly in task accuracy"; "the five-way spread far exceeds label-permutation chance (p = 5×10⁻⁴)".
 - **Prohibited wording:** "fact types are forgotten at different rates"; "differential representational information loss"; any claim without the answered-valid sensitivity.
@@ -56,27 +56,28 @@ All statistics reproduce from the locked parquet to \|Δ\| ≤ 1e-14 (`final_aud
 
 - **Hypothesis:** H2
 - **Claim:** The retrieval-accuracy collapse is threshold-like (concentrated), not gradual, for every architecture.
-- **Status:** **PARTIALLY SUPPORTED** (confirmatory shape test yes; frozen width metric undefined)
-- **Evidence [A]:** `final_h2_h2_shape_break_at_W.csv` (all four "threshold-like", piecewise AIC < smooth); `auditorC_h2_per_facttype_transition_width.csv` (closed-set 90→10 widths 33–69 tokens); `final_h2_h2_curves.csv`.
-- **Statistic:** smooth vs break-at-W fit, ΔAIC favours piecewise for all four (transformer margin thin, ΔAIC 0.68); closed-set per-type widths ≪ 0.5 W.
-- **Uncertainty:** shape test is a point AIC comparison (no CI); per-type widths need a fresh bootstrap CI (post-freeze).
-- **Sensitivity:** covered by `protocol/amendment_h2_transition_width.md` (Options A–D).
-- **Required caveat:** the pre-registered pooled transition-width statistic returned **undefined** (see H2-3); "threshold-like" rests on the shape test + per-type widths + raw curves, not on the frozen width.
+- **Status:** **SUPPORTED** (frozen shape test + v1.1 amended per-type widths agree)
+- **Evidence [A]:** `final_h2_h2_shape_break_at_W.csv` (all four "threshold-like", piecewise AIC < smooth); `outputs/final_v1_1_reporting_amendment/h2_amend__width_by_facttype.csv` (eligible-type 90→10 widths 29–77 tokens, hierarchical CIs, `frac_finite = 1.0`); `final_h2_h2_curves.csv`.
+- **Statistic:** smooth vs break-at-W fit, ΔAIC favours piecewise for all four (transformer margin thin, ΔAIC 0.68); per-eligible-type isotonic 90→10 widths, per-arm median 32 (transformer) / 62–74 (AHN) ≪ 0.5 W (= 128).
+- **Uncertainty:** shape test is a point AIC comparison (no CI); amended per-type widths have hierarchical 95 % CIs (v1.1).
+- **Sensitivity:** `protocol/amendment_h2_transition_width.md` §13 (implementation record); per-seed median width spread 9–15 tokens, transformer < AHN every seed.
+- **Required caveat:** the pre-registered *pooled* transition-width statistic returned **undefined** (see H2-3); "threshold-like" rests on the shape test + the eligible-type widths + raw curves, not on the frozen pooled width.
 - **Allowed wording:** "on every computable view the collapse is concentrated (closed-set per-type 90→10 widths 33–69 model tokens) and threshold-like (shape test), not gradual".
 - **Prohibited wording:** "the transition width is X tokens" as a frozen result; "intermediate".
 
 ### H2-3 — Transition width
 
 - **Hypothesis:** H2
-- **Claim:** (frozen) per-architecture isotonic 90→10 transition width and its {concentrated/gradual/intermediate} verdict.
-- **Status:** **UNDETERMINED** (frozen metric is undefined for this dataset)
-- **Evidence [A]:** `final_h2_h2_width.csv` — `width_tokens` / `ci_low` / `ci_high` all NaN; verdict "intermediate" is a `np.isfinite` fall-through (`h2_threshold.transition_summary`; audit Phase 7).
-- **Statistic:** none valid — the pooled 5-type strict-accuracy curve peaks at ≈ 0.88 and never reaches the 0.9 anchor.
-- **Uncertainty:** N/A (non-finite).
-- **Sensitivity:** `protocol/amendment_h2_transition_width.md` — recommended replacement = per-closed-set-type 90→10 width; **needs team sign-off**.
-- **Required caveat:** disclose as a metric-definition artefact, not a data property.
-- **Allowed wording:** "the pre-registered pooled transition-width statistic is undefined for this dataset because one fact type abstention-saturates below the 0.9 reference; we report per-type widths and the shape test instead (post-freeze reporting amendment [cite])".
-- **Prohibited wording:** "the transition is intermediate"; "intermediate width"; any use of the frozen `verdict` column.
+- **Claim:** the retrieval-accuracy collapse is *concentrated* (narrow transition width), not gradual.
+- **Status (frozen v1.0):** **UNDETERMINED** — the pre-registered pooled 90→10 width is mathematically undefined for this dataset. **Status (v1.1 amendment, approved + implemented 2026-09-09, commit `626521a`):** **SUPPORTED — concentrated.**
+- **Evidence [A]:** *frozen* `final_h2_h2_width.csv` — `width_tokens`/`ci_low`/`ci_high` all NaN; "intermediate" is a `np.isfinite` fall-through (`h2_threshold.transition_summary`; audit Phase 7); preserved untouched. *Amendment* `outputs/final_v1_1_reporting_amendment/h2_amend__{eligibility,width_by_facttype,width_summary_median}.csv`.
+- **Statistic:** frozen pooled 5-type isotonic 90→10 width — none valid (pooled fit ceiling ≈ 0.88 < 0.90). **Amendment [POST-FREEZE REPORTING AMENDMENT, Option A]:** per-eligible-fact-type isotonic 90→10 strict-accuracy width; eligibility = fitted curve attains ≥ 0.90 **and** ≤ 0.10 (defined from the estimator, not observed convenience). Eligible for all four arms: contradictory, entity-attribute, numerical. Ineligible: multi-hop (ceiling 0.862), temporal (0.568).
+- **Numbers [A]:** per-arm **median** eligible width — transformer **32.4 [30.5, 36.8]**, deltanet **71.4 [68.2, 73.5]**, mamba2 **73.8 [71.5, 75.0]**, gated_deltanet **61.8 [58.9, 67.1]** model tokens. Individual eligible widths 29–77 tokens. All ≪ 0.5 W (= 128).
+- **Uncertainty:** hierarchical (item→seed) bootstrap 95 % CI, n = 2000, `frac_finite = 1.000` for every eligible cell; per-seed median-width spread 9–15 tokens.
+- **Sensitivity:** frozen shape test (preserved separately) — all four "threshold-like"; `h2_amend__width_seed_sensitivity.csv`.
+- **Required caveat:** disclose the frozen pooled statistic as a metric-definition artefact (one fact type abstention-saturates below the 0.90 reference); the reported widths cover only the three eligible fact types; cite `protocol/amendment_h2_transition_width.md`.
+- **Allowed wording:** "the transition is concentrated: for the three fact types where the 90→10 width estimator is defined, the width is 29–77 model tokens (per-architecture median 32 for the no-recurrent-memory baseline, 62–74 for AHN), far below half the sliding window; the pre-registered pooled width is undefined because the temporal type abstention-saturates below the 0.90 reference (post-freeze reporting amendment [cite])".
+- **Prohibited wording:** "intermediate width" / any use of the frozen `verdict` column; a pooled single width; presenting the amended per-type widths as a frozen primary endpoint; extrapolating a width to multi-hop or temporal.
 
 ### H2-4 — W vs K
 

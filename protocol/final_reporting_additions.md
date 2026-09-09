@@ -210,3 +210,29 @@ text ("stable across all 8 seeds").
 Additions 1 and 4 need a hierarchical-bootstrap CI computed and a short code helper
 (analysis-only, on the locked artifact); 2, 3, 5, 6, 7 are already fully computed —
 they need prose and appendix tables, not code.
+
+---
+
+## Implementation status (added 2026-09-09 — commit `626521a`)
+
+All seven additions are now **implemented** in `src/ahnexp/reporting_amendment.py`
+(analysis v1.1) and materialised at nboot = 2000 in
+`outputs/final_v1_1_reporting_amendment/`. Rationale above unchanged.
+
+| # | function | output file(s) | key result |
+|---|---|---|---|
+| 1 | `h1_exclude_compound_relational` | `h1_sensitivity__exclude_compound_relational__*` | 4 types; **6/6 contrasts Holm-significant**; omnibus SD 0.1115, **p = 0.0005**; H1 still supported |
+| 2 | `residual_fully_exact_failures` | `descriptive__residual_fully_exact_failures__*` | 11,236 / 34,975 = **32.13 %**; 46.2 % abstain / 38.5 % malformed / 15.3 % wrong-valid; by target 150→12 %, 220→**59.9 %** |
+| 3 | `transformer_malformed` | `disclosure__transformer_malformed__*` | overall **39.59 %**; anchors **0.05 %**; pooled 12.6 %; per arm deltanet 4.7 %, mamba2 4.8 %, gated_deltanet 1.4 %; subtypes too_long 4580 / unrecognised 2241 / empty 1488 / negation 813 |
+| 4 | `deep_recurrent_retention` | `sensitivity__deep_recurrent_retention__*` | ≥ 2W: deltanet 0/3542, gated_deltanet 0/3542, mamba2 1/3542, transformer 3/3542; Wilson-95 upper ≤ **0.25 %**; abstention 89–98 % |
+| 5 | `temporal_counterbalancing` | `disclosure__temporal_counterbalancing__*` | 2×2×2 exactly balanced (`fully_balanced = true`); control subgroups: answered-valid 0.85 (gold lower) vs 0.99 (gold higher), 0.87 vs 1.00 (gold first-listed); pooled control answered-valid 0.922 |
+| 6 | `compound_relational_control_warning` | `disclosure__compound_relational_control_warning__*` | drivers: **strict 0.842 < 0.85 AND abstention 0.115 > 0.10**; `fail_threshold_crossed = false`; `in_h1_primary = true`; by seed 0.77–0.94 |
+| 7 | `per_seed_headline_robustness` | `robustness__per_seed_headline__*` | H1: **2 distinct orderings** across 8 seeds; K spread transformer 1.9 / deltanet 25.8 / gated_deltanet 29.3 / mamba2 21.3; H3 abstention AHN 0.92–0.95, transformer 0.49–0.53 every seed |
+
+Reproduced plumbing gates → `reproduced__plumbing_gates.csv`: **0 blocking**
+(`malformed_control:transformer` = CONTROL_BEHAVIOR; `control_validity:multi-hop` =
+WARNING; `malformed_pooled` = REPORT).
+
+**Classification unchanged:** 1 & 4 = POST-FREEZE SENSITIVITY (4 also NEGATIVE
+RESULT); 2 & 7 = DESCRIPTIVE ROBUSTNESS; 3, 5, 6 = LIMITATION / DISCLOSURE.
+None is a primary analysis. None alters an approved claim.
