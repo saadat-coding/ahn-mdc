@@ -1,0 +1,2 @@
+frozen analysis (full_run.ANALYSIS_VERSION): 1.0
+reporting amendment (reporting_amendment.ANALYSIS_VERSION): 1.1

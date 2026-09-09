@@ -1,0 +1,6 @@
+decision_documents: 76e52079d0b086ee0108861025d1114c20301a9d  Protocol: final results specification + reporting-amendment decision docs
+implementation: 626521a4755abaddfbca26db97b2f4a86575a2d4  Analysis v1.1: post-freeze reporting amendments (H2 width Option A + H1 sensitivity + disclosure tables)
+protocol_record: 1031b07617b8205c3571bec5c9e6056093b2aeb8  Protocol: record the v1.1 reporting-amendment implementation
+implementation_report: ab36f2cb42fe193f9a83cfc9e96dc4a525c203a0  v1.1 amendment: implementation report
+branch: saadat-pipeline-validation
+HEAD at lock time: ab36f2cb42fe193f9a83cfc9e96dc4a525c203a0

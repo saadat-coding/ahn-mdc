@@ -1,0 +1,5 @@
+scripts/verify_frozen_v1_0.py --nboot 2000
+result: 53/53 frozen H1/H2/H3/control quantities identical to final_audit/FINAL_LOCKED/final_*.csv
+max |delta|: 5.7e-14 (float noise)
+final_h2_h2_width.csv reproduces as all-NaN (frozen defect preserved exactly)
+raw artifact SHA-256 unchanged: a72fd43e87457a70c2833314e1443a794fa4189362ac8206c56275ef427fb62e
