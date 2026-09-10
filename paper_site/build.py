@@ -18,6 +18,8 @@ import re
 import subprocess
 import datetime
 import pathlib
+import base64
+import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
@@ -601,6 +603,48 @@ def main() -> None:
     print(f"wrote {HERE/'index.html'}  ({len(page):,} bytes)")
     print(f"draft commit {COMMIT_SHORT} on {BRANCH}, built {BUILD_DATE}")
     print(f"references: {len(bib)}   figures: {len(FIGURES)}   tables: 5")
+
+    for i, arg in enumerate(sys.argv):
+        if arg == "--artifact":
+            out = pathlib.Path(sys.argv[i + 1]) if i + 1 < len(sys.argv) else HERE / "artifact.html"
+            _write_artifact(page, out)
+            break
+
+
+def _data_uri(path: pathlib.Path) -> str:
+    mime = {"png": "image/png", "svg": "image/svg+xml"}[path.suffix.lstrip(".")]
+    b64 = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime};base64,{b64}"
+
+
+def _write_artifact(page: str, out: pathlib.Path) -> None:
+    """Repackage the built index.html as a single self-contained file for the
+    Claude Artifact tool: no <!doctype>/<html>/<head>/<body>, <title>+<style> at
+    the top, every asset inlined. Rendered content is byte-identical to the
+    committed page; only the delivery packaging changes."""
+    css = (HERE / "style.css").read_text()
+    js = (HERE / "app.js").read_text()
+
+    body = page
+    body = body.split("<body id=\"top\">", 1)[1]
+    body = body.rsplit("<script src=\"app.js\"></script>", 1)[0]
+    body = body.replace("</body>", "").replace("</html>", "").strip()
+
+    for slug, *_ in FIGURES:
+        for ext in ("png", "svg"):
+            f = HERE / "figures" / f"{slug}.{ext}"
+            if f.exists():
+                body = body.replace(f"figures/{slug}.{ext}", _data_uri(f))
+
+    art = (
+        "<title>AHN Memory Degradation</title>\n"
+        "<style>\n" + css + "\n</style>\n"
+        '<a id="top"></a>\n'
+        + body + "\n"
+        "<script>\n" + js + "\n</script>\n"
+    )
+    out.write_text(art)
+    print(f"wrote {out}  ({len(art):,} bytes, self-contained)")
 
 
 TEMPLATE = r"""<!doctype html>

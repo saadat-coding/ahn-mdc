@@ -119,7 +119,41 @@ No page summary is **stronger** than the manuscript. Checked explicitly:
 | Special characters | diacritics in author names render (Loïc Cabannes, Pierre-Emmanuel Mazaré, Hervé Jégou); ≈ ≠ ≥ ≤ → ± Δ render as HTML entities |
 | Math notation | the manuscript uses prose/ASCII math only (no LaTeX in the body); no MathJax needed |
 
-## Deployment recommendation
+## Deployment (executed 2026-09-09)
+
+A **private, access-controlled** copy was deployed at the team's request as a
+**Claude Artifact**:
+
+```
+https://claude.ai/code/artifact/1d2c3864-feb1-4334-b1a8-dc59406fade7
+```
+
+- **Access model:** private by default — **only the owner's Claude account**
+  (the account that ran this session) can open it. Teammates get in only when
+  the owner opens the artifact and uses its **Share** menu to either (a) share
+  with specific people's Claude accounts, (b) enable a shareable link, or
+  (c) share org-wide (Team/Enterprise plans only). Nothing is shared until the
+  owner does this.
+- **Not public / not indexed:** served behind claude.ai authentication; not
+  crawlable or searchable; no public URL.
+- **Packaging:** a single self-contained HTML file built with
+  `python3 paper_site/build.py --artifact <out>` — `style.css`, `app.js`, and
+  the 4 figure PNGs/SVGs are inlined as `<style>` / `<script>` / `data:` URIs.
+  Rendered content is identical to the committed `paper_site/index.html`
+  (verified: title, all 7 sections + 5 tables + 17 references, `92,160`,
+  `+0.249 [0.233, 0.266]`, `W = 256`, `W ≠ K`, post-freeze H2 badge,
+  deep-recurrent caveat, behavioural H3 framing, no author names, no local
+  paths). The only medium-imposed delta is that the "PNG / SVG" figure-download
+  links are inert inside the artifact sandbox (the inline images are full-res).
+- **noindex/robots.txt:** the Artifact `<head>` is controlled by the platform,
+  so the page's own `<meta robots>` is not carried — but artifacts are
+  private-by-default and are not served to search engines, which satisfies the
+  requirement. The committed `paper_site/` still carries `<meta robots noindex>`
+  and a disallow-all `robots.txt` for any future static hosting.
+- **GitHub Pages:** not enabled (and must not be — it is public even from a
+  private repo).
+
+## Deployment recommendation (for any future / alternative hosting)
 
 **Do not deploy publicly.** Build and view locally, or share by one of the
 private options in `paper_site/README.md`. Recommended:

@@ -52,12 +52,32 @@ commit and today's date. Only Python 3.8+ standard library is used.
 If you add or replace a figure in `outputs/publication_exhibits/main/`, copy the
 new PNG/SVG into `paper_site/figures/` before rebuilding.
 
-## Sharing / deployment
+## Current deployment
 
-**Nothing has been deployed. Do not deploy publicly** while an anonymous
-NAACL/ARR submission is in preparation — see
-`manuscript/TEAM_PAPER_PAGE_AUDIT.md` for the anonymity assessment and the
-recommended private options. In short:
+A **private, access-controlled** copy is deployed as a Claude Artifact:
+
+```
+https://claude.ai/code/artifact/1d2c3864-feb1-4334-b1a8-dc59406fade7
+```
+
+- **Private by default** — only the artifact owner's Claude account can open it
+  until the owner shares it from the page's *Share* menu.
+- Not publicly searchable or indexed; served behind claude.ai authentication.
+- It is a single self-contained HTML file (assets inlined) generated with
+  `python3 paper_site/build.py --artifact <out.html>`. Rendered content is
+  identical to `index.html`; only the packaging differs (external CSS/JS/figures
+  are inlined, and dead figure-download links are inert in the sandbox).
+- To refresh it after the manuscript changes: rebuild with `--artifact` and
+  re-publish the same file path from the Claude Code session that created it
+  (this keeps the URL).
+
+See `manuscript/TEAM_PAPER_PAGE_AUDIT.md` for the full deployment + anonymity
+assessment.
+
+## Other sharing options
+
+**Do not deploy publicly** while an anonymous NAACL/ARR submission is in
+preparation. Private alternatives:
 
 | option | private? | effort | notes |
 |---|---|---|---|
