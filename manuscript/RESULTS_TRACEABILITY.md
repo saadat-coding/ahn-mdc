@@ -89,3 +89,16 @@ the window"; "neither … retrieve the target" replaced by a production-evaluati
 bounded statement). Section cross-reference for the H2 amendment updated from
 Methods §2.12 to §2.5 (main Methods was condensed; full text in
 `METHODS_EXTENDED.md`).
+
+**Compression pass (main-paper compression).** Old count 49, new count 49; **0
+numerical statements deleted; 0 numerical values changed.** All 49 R-identifiers
+remain in `RESULTS.md`. Terminology: "fact type" → "information type" throughout
+`RESULTS.md`; the residual-window diagnostic is now phrased "target span
+exact-attention eligible" (was "arithmetically inside the lossless window") — same
+computed subset (VAL-4, 34,975 trials), no value change. Detail whose *numeric
+values* now live only in the appendix rather than the main prose (the claim and
+its appendix pointer remain in the main text): **R9** per-type answered-valid
+`A_transition` values (0.669/0.817/0.824/0.910/0.925 → Appendix A-H1; the "2 of 10
+contrasts lose significance" statement stays in main text). Every other R-row's
+headline figure is still stated in the main Results with an added
+"(Appendix …)" source pointer. No surviving numerical statement is untraceable.

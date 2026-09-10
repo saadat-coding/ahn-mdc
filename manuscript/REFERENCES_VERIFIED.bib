@@ -1,16 +1,20 @@
 % References actually cited in the AHN memory-degradation manuscript
 % (Introduction + Related Work + Methods method-attribution).
 %
-% VERIFICATION STATUS (2026-09-09): 16/16 entries verified.
+% VERIFICATION STATUS (2026-09-09): 17/17 entries verified.
 %  - Titles, author lists, arXiv IDs, v1 dates: verified against the arXiv
 %    abstract page for every entry (atlas2026 and evidence2026 also against
-%    full text).
+%    full text; deltanet2024 also against the NeurIPS 2024 proceedings;
+%    ece2017 against its arXiv page).
 %  - Venues: mamba2_2024 = ICML 2024 (verified), gdn2024 = ICLR 2025 (verified),
-%    mamba3_2026 = ICLR 2026 (verified), deltanet2024 = NeurIPS 2024 (author
-%    records; proof-read against the proceedings page before camera-ready).
+%    mamba3_2026 = ICLR 2026 (verified), deltanet2024 = NeurIPS 2024 poster
+%    (verified against the NeurIPS 2024 proceedings; DOI 10.5555/3737916.3741584).
 %  - ahn2025: preprint only; no conference venue verifiable.
 %  - evidence2026: single-author preprint, under submission to JAIR.
 %  - All other contemporary entries: arXiv preprints, no final venue.
+%  - Author-name diacritic proof-read (2026-09-09): only shortwin2025 carries
+%    non-ASCII names (Loic Cabannes, Pierre-Emmanuel Mazare, Herve Jegou) and
+%    they are escaped correctly; all other entries are ASCII.
 % Dates: "released" = original v1 date; a later revision is noted separately and
 % is NOT used to reclassify recency.
 %
@@ -179,12 +183,13 @@
 @inproceedings{deltanet2024,
   title        = {Parallelizing Linear Transformers with the Delta Rule over Sequence Length},
   author       = {Yang, Songlin and Wang, Bailin and Zhang, Yu and Shen, Yikang and Kim, Yoon},
-  booktitle    = {Advances in Neural Information Processing Systems (NeurIPS)},
+  booktitle    = {Advances in Neural Information Processing Systems 37 (NeurIPS 2024)},
   year         = {2024},
   eprint       = {2406.06484},
   archivePrefix= {arXiv},
-  note         = {DeltaNet; the recurrence of the AHN-DeltaNet arm. arXiv v1 2024-06-10, camera-ready v6 2025-01-15; author list verified; venue "NeurIPS 2024" per author records -- proof-read against the NeurIPS proceedings page},
-  url          = {https://arxiv.org/abs/2406.06484}
+  doi          = {10.5555/3737916.3741584},
+  note         = {DeltaNet; the recurrence of the AHN-DeltaNet arm. NeurIPS 2024 poster (proceedings file d13a3eae72366e61dfdc7eea82eeb685; OpenReview y8Rm4VNRPH). arXiv v1 2024-06-10, camera-ready v6 2025-01-15. Author list and venue verified 2026-09-09; all author names ASCII},
+  url          = {https://proceedings.neurips.cc/paper_files/paper/2024/hash/d13a3eae72366e61dfdc7eea82eeb685-Abstract-Conference.html}
 }
 
 @inproceedings{gdn2024,
@@ -198,15 +203,24 @@
   url          = {https://arxiv.org/abs/2412.06464}
 }
 
+@inproceedings{ece2017,
+  title        = {On Calibration of Modern Neural Networks},
+  author       = {Guo, Chuan and Pleiss, Geoff and Sun, Yu and Weinberger, Kilian Q.},
+  booktitle    = {Proceedings of the 34th International Conference on Machine Learning (ICML)},
+  year         = {2017},
+  eprint       = {1706.04599},
+  archivePrefix= {arXiv},
+  note         = {Method attribution for the expected-calibration-error / reliability-diagram metric named in Methods 2.4 (H3 secondary calibration). Verified 2026-09-09; ICML 2017; all author names ASCII},
+  url          = {https://arxiv.org/abs/1706.04599}
+}
+
 % ---------------------------------------------------------------------------
-% DEFERRED (not cited in Introduction/Related Work; add only when wired)
+% CONSIDERED, NOT CITED
 % ---------------------------------------------------------------------------
-% ece2017 (Guo et al., On Calibration of Modern Neural Networks, ICML 2017,
-%   arXiv 1706.04599) -- method attribution for the ECE / reliability-diagram
-%   metric computed in Methods 2.4. Add to Methods when Methods citations are
-%   wired; NOT verified by fetch yet. Foundational exception if retained.
 % absence2025 (Fu et al., AbsenceBench, arXiv 2506.11440, 2025-06-13) -- DROPPED
 %   from the cited set: ~15 months old, and the general "long-context models
 %   miss or misuse supplied evidence" point is carried by evidence2026 + atlas2026.
 % mamba2023 (Gu & Dao, Mamba, arXiv 2312.00752) -- DROPPED: the selective-SSM
 %   lineage is not spelled out in the manuscript; mamba2_2024 + mamba3_2026 suffice.
+% (ece2017 was previously deferred; it is now cited in Methods 2.4 and appears
+%  above as a method-attribution entry.)

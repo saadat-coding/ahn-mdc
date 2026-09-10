@@ -15,7 +15,7 @@ approved post-freeze reporting amendment
 configuration and code. Numerical statements in this section are cross-referenced
 in `manuscript/RESULTS_TRACEABILITY.md`.
 
-Terminology note: one fact type is referred to throughout the manuscript as
+Terminology note: one information type is referred to throughout the manuscript as
 **compound-relational**. Its data key in the released artifact and code is
 `multi-hop`; the key is retained for reproducibility and is not a claim about the
 task (§2.4).
@@ -67,7 +67,7 @@ mechanism to access evicted tokens (pure truncation). All arms share
 `sliding_window_type = fixed`, and the decoding configuration in §2.5; the
 recurrent mechanism is the only intended difference. The AHN parameter counts
 differ by ~10% and the modules were self-distilled by the original authors; both
-are disclosed as confounds ([CITE AHN paper]).
+are disclosed as confounds \citep{ahn2025}.
 
 ## 2.3 Memory-pressure experimental design
 
@@ -85,15 +85,15 @@ pressure levels (§2.8). Trajectories are nested: for a given item and seed, the
 distractor block at a lower pressure level is a prefix of the block at the next
 level.
 
-## 2.4 Evaluation dataset and fact types
+## 2.4 Evaluation dataset and information types
 
 The evaluation set is 240 synthetic items, generated deterministically (seed 0),
-48 per fact type, balanced 120/120 across a low/high distractor-density factor and
+48 per information type, balanced 120/120 across a low/high distractor-density factor and
 across three target positions. Distractors never contain the target's answer
 string (collision control). Each item is a single **target sentence** plus a
-question over that sentence. The five fact types:
+question over that sentence. The five information types:
 
-| fact type (manuscript) | data key | answer form | target / query example |
+| information type (manuscript) | data key | answer form | target / query example |
 |---|---|---|---|
 | numerical | `numerical` | exact digit string | "Person_0's employee ID is 100000." / "What is Person_0's employee ID?" |
 | entity-attribute | `entity-attribute` | closed set (5 colours) | "Person_0's favourite colour is blue." / "…favourite colour?" |
@@ -114,7 +114,8 @@ the question — are assigned from a density-stratified, seed-shuffled plan that
 balances them 24/24 against the gold and produces an exact 2x2x2 design (6 items
 per cell). The model has a documented directional response preference (favouring
 the lower-numbered / first-listed candidate) that this counterbalancing nets to
-chance; it is reported, not engineered away (§2.13; [CITE temporal repair note]).
+chance; it is reported, not engineered away (§2.13; see the temporal-repair
+validation record in `protocol/temporal_repair_validation.md`).
 
 ## 2.5 Prompting and generation
 
@@ -139,9 +140,9 @@ We distinguish three quantities.
   instruction block plus the chat-template suffix. Curves are plotted and fits are
   computed against this realised coordinate.
 - **`intended_model_tokens_after_target`** (the grouping key): the pressure level a
-  trajectory was calibrated to hit. Because per-fact-type prompt overhead differs
+  trajectory was calibrated to hit. Because per-information-type prompt overhead differs
   by ~10 tokens, each intended level maps to a different requested distractor-token
-  count per fact type; calibration was performed with the base tokenizer and no
+  count per information type; calibration was performed with the base tokenizer and no
   model, and realised values track intended values closely (§2.8, Figure D).
 - **W = 256**: the architectural sliding-window reference.
 
@@ -162,7 +163,7 @@ removed). Each trial is assigned **exactly one** of four outcomes:
   form.
 - **malformed** — the cleaned response is empty, contains a negation, is longer
   than four words, or does not resolve to exactly one recognised value for the
-  fact type (this also catches a bare mention of the gold, a question echo, and
+  information type (this also catches a bare mention of the gold, a question echo, and
   multiple competing candidates).
 - **correct** — the response resolves to a single value and that value equals the
   canonicalised gold.
@@ -204,21 +205,21 @@ missing values in any scored field (§2.14).
 
 ## 2.9 H1 analysis
 
-**Endpoint.** For each fact type, `A_transition` is the mean strict production
+**Endpoint.** For each information type, `A_transition` is the mean strict production
 accuracy over the five intended transition targets `[205, 220, 235, 250, 265]`,
 pooling the three AHN architectures; the Transformer is a reference curve and is
-excluded from the pooled endpoint. `A_transition` was computed only for fact types
+excluded from the pooled endpoint. `A_transition` was computed only for information types
 that passed the pre-registered in-window control-validity check (§2.13); all five
 types passed the retain-in-primary threshold.
 
-**Test.** The primary test is the set of 10 pairwise fact-type differences in
+**Test.** The primary test is the set of 10 pairwise information-type differences in
 `A_transition`. Uncertainty is a two-level cluster bootstrap: item clusters (240)
 are resampled with replacement, then seed realisations are resampled within each
 sampled item; matched architecture × pressure rows travel with their (item, seed)
 unit. 2,000 resamples, percentile 95% intervals, deterministic seeding. Two-sided
 bootstrap p-values are adjusted by Holm within the 10-comparison family. **H1 is
 supported if at least one Holm-adjusted interval excludes zero.** A companion
-omnibus test permutes the fact-type labels across items (2,000 permutations) and
+omnibus test permutes the information-type labels across items (2,000 permutations) and
 compares the observed dispersion (standard deviation) of the five `A_transition`
 means to the permutation null.
 
@@ -293,7 +294,7 @@ stated as a limitation.
 The pre-registered pooled 90→10 transition-width statistic (§2.10) returned a
 non-finite value for every architecture. The cause is a metric-definition issue,
 not a data issue: the isotonic fit is applied to strict accuracy pooled over all
-five fact types, and that pooled curve peaks near 0.88 because the temporal and
+five information types, and that pooled curve peaks near 0.88 because the temporal and
 compound-relational types abstention-saturate while the target is still inside the
 window (temporal ≈ 0.38 in-window abstention; compound-relational ≈ 0.12). With no
 point at or above 0.90, the 0.90 crossing does not exist, and the frozen
@@ -305,8 +306,8 @@ The correction (approved 2026-09-09; implemented at commit `626521a`;
 
 1. The frozen output (`final_h2_h2_width.csv`, all-NaN) is preserved verbatim and
    is reported as the record; the default verdict label is not used.
-2. The 90→10 width is computed **per fact type per architecture**, and reported
-   only for fact types where the estimator is mathematically defined —
+2. The 90→10 width is computed **per information type per architecture**, and reported
+   only for information types where the estimator is mathematically defined —
    **eligibility requires the fitted isotonic curve to attain a value ≥ 0.90 and a
    value ≤ 0.10**. This rule is derived from the estimator, not chosen from the
    observed widths.
@@ -315,7 +316,7 @@ The correction (approved 2026-09-09; implemented at commit `626521a`;
    **compound-relational** (fitted ceiling 0.862) and **temporal** (0.568); both
    fail only the upper reference, because their in-window accuracy is capped by
    abstention.
-4. Per-fact-type widths use the same hierarchical (item → seed) bootstrap as the
+4. Per-information-type widths use the same hierarchical (item → seed) bootstrap as the
    other H2 quantities (2,000 resamples). A per-architecture cross-type summary is
    the **median** of the eligible-type widths (a fixed choice: robust to a single
    anomalous type, appropriate for a small discrete set, no equal-precision
@@ -329,7 +330,7 @@ identified as post-freeze wherever it appears.
 
 ## 2.13 Robustness and construct-validity analyses
 
-- **Per-fact-type control validity.** For each fact type, retrieval on the pooled
+- **Per-information-type control validity.** For each information type, retrieval on the pooled
   control anchors (intended 150 and 180) is checked against pre-registered
   floors: for non-temporal types, PASS at strict accuracy ≥ 0.85, WARNING in
   [0.70, 0.85) or with abstention > 0.10 or malformed > 0.05, FAIL (benchmark
@@ -344,12 +345,12 @@ identified as post-freeze wherever it appears.
 - **Residual in-window failures.** For the subset of trials in which the target
   span is arithmetically inside the lossless window for the whole trial
   (`model_tokens_after_target + target span + generated tokens ≤ W`), the failure
-  rate is reported, stratified by fact type, architecture, intended target, and
+  rate is reported, stratified by information type, architecture, intended target, and
   seed.
 - **Deep-recurrent retention.** Restricted to realised
   `model_tokens_after_target ≥ 2W` (512), correct counts, denominators, and Wilson
-  95% intervals are reported per architecture and per fact type.
-- **Per-seed robustness.** `A_transition` per fact type, K per architecture, and
+  95% intervals are reported per architecture and per information type.
+- **Per-seed robustness.** `A_transition` per information type, K per architecture, and
   the H3 appropriate-abstention rate per architecture are reported for each of the
   8 seeds.
 
@@ -367,10 +368,11 @@ failures.
 Generation ran on an NVIDIA L4 GPU with Python 3.12, torch 2.6.0+cu126,
 transformers 4.51.0, flash-attn 2.8.3.post1, mamba-ssm 2.2.5. The exact
 generation-runtime commit (`d29c6d8…`) is recorded in the artifact provenance but
-is not present in the released repository history; its scientifically relevant
-code is provably identical to the released design commit, since the scorer output,
-the prompt hash, the calibration hash, and every reproduced analysis quantity all
-match. This provenance gap is disclosed as a limitation. The design commit,
+is not present in the released repository history. Multiple equivalence and
+reproduction checks — the scorer output, the prompt hash, the calibration hash,
+and every reproduced analysis quantity — found no evidence of a scientifically
+relevant discrepancy between the runtime code and the released design commit. This
+provenance gap is disclosed as a limitation. The design commit,
 frozen analysis outputs, the post-freeze amendment outputs, and per-file hashes
 are archived in `final_audit/FINAL_LOCKED/` (frozen v1.0) and
 `final_audit/V1_1_LOCKED/` (amendment v1.1).
