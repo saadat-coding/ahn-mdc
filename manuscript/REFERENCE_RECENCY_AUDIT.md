@@ -92,15 +92,31 @@ recurrent mechanisms the evaluated AHN checkpoints implement.
 | `mamba2023` (Mamba, 2023-12, ~33mo) | listed as a weak method-attribution candidate | **not cited** | the selective-SSM lineage is not spelled out in the manuscript; `mamba2_2024` + `mamba3_2026` cover the SSM context |
 | `ece2017` (Guo et al., 2017) | listed as a metric-attribution exception | **deferred, not cited yet** | belongs in Methods §2.4 (which computes ECE) and Methods is frozen for this task; to be added when Methods citations are wired. Not yet fetch-verified. |
 
-## Outstanding literature actions before submission
+## Literature-verification status (updated 2026-09-09, this task)
 
-1. Human proof-read of every author list, date, and venue in
-   `REFERENCES_VERIFIED.bib` against the ACL Anthology / OpenReview / PMLR /
-   publisher page (arXiv values are recorded but the task asks for the
-   authoritative venue page where one exists — `mamba3_2026` ICLR 2026,
-   `gdn2024` ICLR 2025, `deltanet2024` NeurIPS 2024, `mamba2_2024` ICML 2024).
-2. Verify `ece2017` and add it to Methods when Methods citations are wired.
+- **WARN A (closest-work negative-scope claims) — CLOSED.** Full text of ATLAS
+  (`atlas2026`) and Diagnosing Evidence Utilization (`evidence2026`) read and
+  checked against nine specific scope questions (recurrent/compressed memory;
+  hybrid exact/recurrent; exact-to-compressed transition; sliding-window
+  manipulation; knee vs window; information-type degradation; abstention under
+  pressure; failure-mode analysis; deep recurrent retrieval). Every manuscript
+  differentiation statement about these two papers is confirmed. `evidence2026`
+  *does* report failure/parse-failure diagnosis, which our Related Work already
+  credits ("outcome-decomposition spirit"), so no overclaim. Citation map
+  R16/R17 upgraded M→H. No manuscript wording change required.
+- **WARN B (bibliography) — 16/16 verified.** Titles, author lists, arXiv IDs,
+  and v1 dates verified against the arXiv abstract pages. Venues: `mamba2_2024`
+  ICML 2024 (verified), `gdn2024` ICLR 2025 (verified), `mamba3_2026` ICLR 2026
+  (verified), `deltanet2024` NeurIPS 2024 (author records; flagged for a final
+  proceedings-page proof-read). `ahn2025` preprint only (OpenReview UUW0DHqs4f
+  not reachable — no venue asserted). `evidence2026` under submission to JAIR.
+  Residual: a mechanical proof-read of author-name spelling/diacritics against
+  each publisher page (not blocking a draft review).
+
+## Outstanding (non-blocking) actions before final submission
+
+1. Final proceedings-page proof-read of `deltanet2024` venue and of author-name
+   diacritics across all entries.
+2. Verify `ece2017` (Guo et al. 2017) and add it to Methods §2.4 when Methods
+   citations are wired.
 3. Re-run the novelty searches close to submission; report any newer overlap.
-4. Re-check the three negative-scope claims in the closest-work paragraph
-   (citation map R16–R18) against the full text of ATLAS, evidence2026,
-   MemMamba, and the Mamba recall-scaling paper.

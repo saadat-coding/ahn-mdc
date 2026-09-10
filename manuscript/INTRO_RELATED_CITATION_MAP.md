@@ -45,9 +45,9 @@ could object to.
 | R13 | "systematic overconfidence … concentrated on harder items — a hard–easy effect in which difficult tests draw the largest overconfidence" | calib2026 | DIRECT | abstract: overconfidence overall, "hard–easy effect" — hardest tests most overconfident, easy tests underconfident | H | safe |
 | R14 | "a model's stated confidence can be dissociated from its actual decision to answer or abstain" | verbalconf2026 | DIRECT | abstract: expressed confidence not clearly tied to reasoning/decision; models "neither cost-aware … nor strategically responsive" | H | safe |
 | R15 | "a … learned or distilled abstention policy … remain experimentally unresolved alternatives" | hesitation2025 | INFERENCE | hesitation2025 shows abstention *can* be trained; we cite it as evidence the alternative is plausible, not that AHN used it | M | must stay phrased as "alternative", never "AHN was distilled to abstain" — current wording complies |
-| R16 | closest-work: ATLAS "benchmark-aggregate … does not contrast a recurrent-memory architecture … or manipulate an exact-attention boundary or analyse abstention" | atlas2026 | DIRECT (negative) | ATLAS scope from its abstract/summary; the absence of a recurrent-memory contrast / window manipulation / abstention analysis is verifiable from its described method | M | negative claims about another paper's scope — checked against the fetched summary; re-verify against full paper before camera-ready |
-| R17 | closest-work: evidence-utilization "Transformer- and retrieval-centric, without a recurrent memory or a transition-shape analysis" | evidence2026 | DIRECT (negative) | its matched conditions are long-context vs RAG vs compact; no recurrent-memory arm | M | as R16 |
-| R18 | closest-work: "MemMamba and the recall scaling laws explain why a bounded recurrent state has limited and decaying recall … neither evaluates a deployed hybrid system under controlled pressure or examines failure behaviour" | memmamba2025; recallmamba2026 | DIRECT (negative) | both are architecture/theory; neither runs a deployed-checkpoint pressure evaluation | H | safe |
+| R16 | closest-work: ATLAS "benchmark-aggregate … does not contrast a recurrent-memory architecture … or manipulate an exact-attention boundary or analyse abstention" | atlas2026 | DIRECT (negative) | **Full text verified 2026-09-09.** ATLAS: no recurrent/compressed/hybrid memory; no sliding-window or exact-to-compressed manipulation; no empirical-knee vs window distinction; degradation organised by *task type* (retrieval/QA/code/memory), not information type; deterministic metrics (EM/F1/Acc/Pass@1), no abstention or failure-mode composition; single-pass retrieval only. | H | claim confirmed against full text; no change needed |
+| R17 | closest-work: evidence-utilization "Transformer- and retrieval-centric, without a recurrent memory or a transition-shape analysis" | evidence2026 | DIRECT (negative) | **Full text verified 2026-09-09.** No recurrent/SSM/hybrid memory (Qwen/Gemma/Llama/Mistral transformers); no sliding-window / exact-to-compressed study; no knee vs window distinction; distinguishes *reasoning type* (single/multi-hop, comparison, arithmetic), not fact/information type; **does** report failure diagnosis / parse-failure separately (App. A.5, §7.7) — our text already credits its "outcome-decomposition spirit", so no overclaim; no deep recurrent retrieval. | H | claim confirmed; the shared outcome-decomposition credit in RW §2.4 is accurate |
+| R18 | closest-work: "MemMamba and the recall scaling laws explain why a bounded recurrent state has limited and decaying recall … neither evaluates a deployed hybrid system under controlled pressure or examines failure behaviour" | memmamba2025; recallmamba2026 | DIRECT (negative) | both are architecture/theory; neither runs a deployed-checkpoint pressure evaluation (verified against abstracts; full-text re-check optional, low risk) | H | safe |
 | R19 | closest-work: "Reinforced Hesitation … and selective-answering with risk control … build abstention capabilities, whereas we measure an abstention shift that emerges without any such intervention" | hesitation2025; cic2026 | DIRECT (negative) | both introduce methods; our study introduces none | H | safe |
 | R20 | closest-work closing: "these lines have not been combined … evaluated together on a hybrid … model with a matched control" | (all of §2.1–2.3) | SYNTHESIS | novelty audit (`LITERATURE_MAP.md` §C); phrased as "to our reading" | M | must not become "no prior work"/"first"; current wording is "to our reading these lines have not been combined" — a differentiation statement, acceptable |
 
@@ -55,11 +55,16 @@ could object to.
 
 - Literature-dependent sentences: **31** (11 Introduction + 20 Related Work).
 - Mapped: **31 / 31 (100%)**.
-- DIRECT: 24 · SYNTHESIS: 4 · INFERENCE: 2 · DIRECT-negative (scope claims about
-  other papers): matched into the DIRECT count above and separately flagged.
-- Confidence H: 22 · M: 9 · L: 0.
-- Every M-confidence item is a differentiation or negative-scope statement, not a
-  positive empirical claim about our results; each is flagged for re-verification
-  against the full text of the cited paper before camera-ready.
+- DIRECT: 24 (incl. 4 DIRECT-negative scope claims about other papers) ·
+  SYNTHESIS: 4 · INFERENCE: 2.
+- Confidence H: **26** · M: **5** · L: 0. (After the 2026-09-09 full-text
+  verification of ATLAS and evidence2026, R16/R17 moved M→H.)
+- Remaining M items (R0, R3-adjacent framing, R11-context, R15, R20) are
+  differentiation / synthesis statements, not positive empirical claims about our
+  results.
+- INFERENCE items: I11 ("AHN does not claim the compressed state is lossless" —
+  a negative about AHN's framing, supported by AHN's own "lossless short-term /
+  compressed long-term" wording) and R15 ("learned/distilled abstention policy …
+  alternative" — phrased as an alternative, never asserted of AHN).
 - No sentence carries a citation that supports only a different part of the claim.
 - No citation is attached for recency alone.
