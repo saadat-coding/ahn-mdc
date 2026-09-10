@@ -1,0 +1,148 @@
+/* AHN paper draft — internal team review page. Restrained academic style. */
+:root{
+  --bg:#fbfbf9; --panel:#ffffff; --ink:#1c1e21; --muted:#5b6067;
+  --line:#e5e3dc; --accent:#8a2a2a; --accent-soft:#f3e9e7;
+  --frozen:#2f5d50; --pf:#8a5a1a;
+  --maxw:1080px; --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+  font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+.ms p code,.draft-info td code,.review p code,.foot code{overflow-wrap:anywhere;word-break:break-word}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86em;
+  background:#f1efe9;padding:.08em .34em;border-radius:4px}
+h1,h2,h3,h4{line-height:1.25;font-weight:650}
+section{padding:38px 0;border-bottom:1px solid var(--line)}
+section>h2{font-size:1.5rem;margin:0 0 .6em;letter-spacing:-.01em}
+
+/* draft bar + hero */
+.draftbar{background:var(--accent);color:#fff;font-size:.82rem;letter-spacing:.02em;
+  text-align:center;padding:7px 14px;font-weight:600}
+.hero{background:var(--panel);border-bottom:1px solid var(--line);padding:40px 0 26px}
+.hero h1{font-family:var(--serif);font-size:2.15rem;margin:.35em 0 .3em;letter-spacing:-.015em;max-width:22ch}
+@media(min-width:720px){.hero h1{max-width:none}}
+.lede{font-size:1.12rem;color:#33363a;margin:.2em 0 .6em;max-width:66ch}
+.team{color:var(--muted);font-size:.92rem;margin:.2em 0 1.1em}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.badge{display:inline-block;font-size:.74rem;font-weight:650;letter-spacing:.03em;
+  text-transform:uppercase;padding:4px 9px;border-radius:999px;background:#eee;color:#444;border:1px solid var(--line)}
+.badge-draft{background:var(--accent);color:#fff;border-color:var(--accent)}
+.badge-frozen{background:var(--frozen);color:#fff;border-color:var(--frozen);text-transform:none;letter-spacing:0}
+.badge-pf{background:var(--pf);color:#fff;border-color:var(--pf);text-transform:none;letter-spacing:0}
+.topnav{display:flex;flex-wrap:wrap;gap:2px 4px;margin-top:6px}
+.topnav a{font-size:.9rem;padding:6px 11px;border-radius:7px;color:#3a3d42}
+.topnav a:hover{background:var(--accent-soft);text-decoration:none}
+
+/* review box */
+.review{background:var(--accent-soft);border-radius:12px;padding:22px 24px;margin-top:26px;border:1px solid #e6d6d3}
+.review h2{margin-top:0}
+.review ol{margin:.4em 0 .6em 1.1em;padding:0}
+.review li{margin:.32em 0}
+.muted{color:var(--muted);font-size:.95rem}
+
+/* overview / TL;DR */
+.tldr{font-size:1.06rem;max-width:74ch;background:var(--panel);border:1px solid var(--line);
+  border-left:3px solid var(--accent);border-radius:8px;padding:16px 20px}
+.wwh{display:grid;grid-template-columns:1fr;gap:14px;margin-top:22px}
+@media(min-width:820px){.wwh{grid-template-columns:repeat(3,1fr)}}
+.wwh-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.wwh-card h3{margin:0 0 .4em;font-size:1.06rem;color:var(--accent)}
+.wwh-card p{margin:0;font-size:.96rem;color:#2c2f33}
+
+/* findings */
+.findings{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:760px){.findings{grid-template-columns:1fr 1fr}}
+.finding{display:block;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:18px 20px;color:inherit;transition:border-color .15s,transform .15s}
+.finding:hover{border-color:var(--accent);text-decoration:none;transform:translateY(-1px)}
+.finding-k{display:inline-block;font-weight:700;color:var(--accent);font-size:.8rem;letter-spacing:.06em}
+.finding-tag{display:inline-block;margin-left:8px;font-size:.76rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.finding h3{margin:.35em 0 .3em;font-size:1.12rem}
+.finding p{margin:0;font-size:.95rem;color:#2c2f33}
+
+/* experiment panel */
+.exp{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.exp-row{display:grid;grid-template-columns:1fr;border-top:1px solid var(--line);padding:12px 16px}
+.exp-row:first-child{border-top:0}
+@media(min-width:620px){.exp-row{grid-template-columns:200px 1fr;gap:14px;align-items:baseline}}
+.exp-k{font-weight:650;color:#3a3d42}
+.exp-v{display:flex;flex-wrap:wrap;gap:6px}
+.exp-v span{background:#f1efe9;border:1px solid var(--line);border-radius:6px;padding:3px 9px;font-size:.9rem}
+.wk-note{margin-top:16px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--frozen);
+  border-radius:8px;padding:14px 18px}
+.wk-note p{margin:0;font-size:.96rem}
+
+/* figures */
+.fig{margin:26px 0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.fig img{width:100%;height:auto;display:block;border-radius:6px;background:#fff}
+.fig figcaption{margin-top:12px;font-size:.93rem;color:#2c2f33}
+.fig-links{display:block;margin-top:8px;font-size:.86rem;color:var(--muted)}
+.tbl{margin:20px 0}
+.tbl figcaption{font-size:.9rem;color:#2c2f33;margin-bottom:8px;max-width:80ch}
+.tbl-scroll{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:8px;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:.9rem;background:var(--panel)}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+thead th{background:#f4f2ec;font-weight:650;position:sticky;top:0}
+.tbl-notes{margin:8px 0 0 1.1em;padding:0;font-size:.85rem;color:var(--muted)}
+.tbl-notes li{margin:.25em 0}
+
+/* results snapshot */
+.snapshot{display:grid;grid-template-columns:1fr;gap:18px}
+@media(min-width:900px){.snapshot{grid-template-columns:1fr 1fr}}
+.snap-col{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.snap-col h4{margin:0 0 .5em;font-size:1rem}
+.snap-col ul{margin:0;padding-left:1.1em}
+.snap-col li{margin:.5em 0;font-size:.93rem}
+.jump{font-weight:600}
+
+/* paper layout */
+.paper-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:26px}
+@media(min-width:1000px){.paper-layout{grid-template-columns:210px minmax(0,1fr)}}
+.paper-layout>*{min-width:0}
+.toc{display:none;min-width:0}
+@media(min-width:1000px){.toc{display:block}}
+.toc-inner{position:sticky;top:16px;font-size:.9rem;display:flex;flex-direction:column;gap:2px}
+.toc-inner strong{margin-bottom:6px;text-transform:uppercase;font-size:.74rem;letter-spacing:.06em;color:var(--muted)}
+.toc-inner a{padding:4px 8px;border-radius:6px;color:#3a3d42}
+.toc-inner a:hover,.toc-inner a.active{background:var(--accent-soft);text-decoration:none;color:var(--accent)}
+.paper-body{min-width:0}
+.ms{padding:22px 0;border-bottom:1px solid var(--line)}
+.ms:last-child{border-bottom:0}
+.ms h2{font-family:var(--serif);font-size:1.5rem;margin:0 0 .5em}
+.ms h3{font-size:1.12rem;margin:1.3em 0 .4em}
+.ms h4{font-size:1rem;margin:1.1em 0 .3em;color:#33363a}
+.ms p{max-width:74ch;margin:.7em 0}
+.cite{white-space:nowrap}
+.rtag{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:.78em;
+  background:#eef1f0;color:#2f5d50;padding:.02em .3em;border-radius:4px;border:1px solid #dbe4e1}
+.reflist{padding-left:1.4em;font-size:.9rem}
+.reflist li{margin:.55em 0;line-height:1.5}
+.ref-title{font-style:italic}
+.ref-venue{color:var(--muted)}
+
+/* draft info */
+.draft-info table{max-width:640px;font-size:.92rem}
+.draft-info th{white-space:nowrap;color:#3a3d42;width:150px;vertical-align:top}
+.draft-info td{white-space:normal}
+
+.foot{background:var(--panel);border-top:1px solid var(--line);padding:26px 0;margin-top:0}
+.foot p{color:var(--muted);font-size:.88rem;max-width:80ch;margin:0}
+
+.totop{position:fixed;right:16px;bottom:16px;background:var(--accent);color:#fff;
+  width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:1.1rem;opacity:.85;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.totop:hover{opacity:1;text-decoration:none}
+
+@media print{
+  .draftbar,.topnav,.totop,.review,.toc,.fig-links,#key-findings .muted{display:none!important}
+  body{background:#fff;font-size:11pt}
+  section,.ms{border:0;padding:12px 0}
+  .fig,.snap-col,.wwh-card,.tldr,.exp,.wk-note{border:1px solid #ccc;break-inside:avoid}
+  a{color:#000;text-decoration:none}
+  .hero h1{font-size:20pt}
+}
