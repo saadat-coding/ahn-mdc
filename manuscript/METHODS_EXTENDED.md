@@ -22,7 +22,7 @@ task (§2.4).
 
 ## 2.1 Research questions and hypotheses
 
-We study how retrieval from an Adaptive Hybrid Neural (AHN) recurrent memory
+We study how retrieval from an Artificial Hippocampus Network (AHN) recurrent memory
 degrades as the target of a query is pushed out of the model's exact-attention
 window, relative to a matched Transformer that has no recurrent memory. Three
 pre-registered hypotheses were tested.

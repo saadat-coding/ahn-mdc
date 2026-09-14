@@ -62,15 +62,29 @@ source field · statistic · value · CI / p · analysis version · status.
 | R47 | residual failure 12% at intended 150/180; 34% / 60% / 55% at 205 / 220 / 235; 30–34% every seed | VAL-4 | A-H2b | `descriptive__residual_fully_exact_failures__by_intended_model_tokens_after_target.csv`; `__by_seed` | fail_rate by target / seed | conditional failure rate | 0.120 / 0.118; 0.340 / 0.599 / 0.553; 0.297–0.347 | — | 1.1 | **post-freeze descriptive** |
 | R48 | residual failure by type: entity-attr 12%, contradictory 23%, numerical 34%, compound-rel 41%, temporal 52% | VAL-4 | A-H2b | `descriptive__residual_fully_exact_failures__by_fact_type.csv` | fail_rate | conditional failure rate | 0.119 / 0.232 / 0.339 / 0.412 / 0.516 | — | 1.1 | **post-freeze descriptive** |
 | R49 | plumbing gates reproduce with 0 blocking; Transformer malformed = control behaviour; compound-rel control = WARNING | (provenance) | A-REPRO | `reproduced__plumbing_gates.csv` | verdict | pre-registered gate outcomes | 0 blocking; CONTROL_BEHAVIOR; WARNING | — | 1.0/1.1 | frozen gate, reproduced |
+| R50 | contradictory & numerical A_transition trajectory not strictly monotonic: partial rebound at intended 235 vs 220, consistent in 8/8 seeds and all 3 AHN arms | H1-2 (descriptive) | fig1 | recomputed from locked parquet (`results_FINAL_92160.parquet`), AHN arms pooled, grouped by (fact_type, intended_model_tokens_after_target) and by (seed, intended_model_tokens_after_target) | `correct` | cell mean strict accuracy | contradictory: 0.513→0.676; numerical: 0.333→0.560 (220→235); rebound present in 8/8 seeds and all 3 AHN architectures | n=144/seed·target cell (48 items × 3 arms) | 1.0 | **team-feedback descriptive verification** (recomputed from locked parquet with frozen scoring fields; no new inferential endpoint) |
+| R51 | Transformer abstention non-monotonic in pressure: 0.52 (265) → 0.27 (315) → 0.26 (380) → 0.82 (520) → 0.95 (760), mirrored by malformed rate | VAL-3 (descriptive) | fig2 | recomputed from locked parquet, Transformer rows grouped by intended_model_tokens_after_target | `abstained`, `malformed`, `correct` | cell mean rate | abstained 0.518/0.322/0.268/0.263/0.821/0.946 at 265/285/315/380/520/760 | n=1,920/target | 1.0 | **team-feedback descriptive verification** (recomputed from locked parquet; no new inferential endpoint; does not alter the frozen H3 pooled statistic) |
 
 ## Untraceable numerical prose
 
-**None.** Every numerical statement in `RESULTS.md` has a row above (49 statements,
-49 traced). Three rows use values recomputed from the locked parquet with frozen
-code rather than read directly from a frozen CSV (R9 per-type answered-valid
-`A_transition`; R19 `K_abstention`; R30 outcome composition) — these are marked and
-reproduce deterministically. All post-freeze quantities are analysis version 1.1
-and are labelled as post-freeze in `RESULTS.md`.
+**None.** Every numerical statement in `RESULTS.md` has a row above (51 statements,
+51 traced). Five rows use values recomputed from the locked parquet with frozen
+scoring fields rather than read directly from a frozen CSV (R9 per-type
+answered-valid `A_transition`; R19 `K_abstention`; R30 outcome composition; R50
+and R51, added in the team-feedback verification pass below) — these are marked
+and reproduce deterministically. All post-freeze quantities are analysis version
+1.1 and are labelled as post-freeze in `RESULTS.md`.
+
+**Team-feedback verification pass (2026-09-13).** R50 and R51 were added in
+response to teammate observations about apparent non-monotonicity in Figures 1
+and 2. Both are **descriptive recomputations from the already-locked, already-
+scored raw parquet** (`final_audit/FINAL_LOCKED/results_FINAL_92160.parquet`,
+SHA-256 unchanged) using only the existing `correct`/`abstained`/`malformed`
+fields and a `groupby`/`mean` — no new model inference, no new statistical test,
+no new inferential endpoint, and no change to any frozen or post-freeze primary
+result. See `manuscript/FIG1_TRANSITION_VARIABILITY_AUDIT.md` and
+`manuscript/FIG2_CONTROL_ABSTENTION_AUDIT.md` for the full descriptive tables
+(per-seed, per-architecture breakdowns) supporting R50/R51.
 
 **p-value representation (Revision Pass 1).** No statistical test or estimator
 changed. Bootstrap contrast p-values that the frozen analysis records as `0.0`

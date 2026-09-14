@@ -34,7 +34,13 @@ on their dispersion gives p = 5e-4 (0 of 2,000 permutations reached the
 observed SD of 0.127). **[R8]** All 10 pairwise differences have Holm-adjusted 95%
 bootstrap intervals excluding zero; the smallest is compound-relational vs
 temporal (-0.052, 95% CI [-0.099, -0.003], Holm p = 0.037), the other nine
-at p < 0.001 (Table 2). The pre-registered criterion for H1 is met.
+at p < 0.001 (Table 2). The pre-registered criterion for H1 is met. **[R50]**
+Within the transition region the per-target trajectory is not strictly
+monotonic for every type: contradictory and numerical both show a partial
+rebound at intended target 235 relative to 220 that is consistent across all 8
+seeds and all three AHN architectures (Figure 1); the primary endpoint
+A_transition is the mean over the five transition targets and does not assume
+or require a monotonic decline.
 
 Compound-relational degrades fastest and entity-attribute is most robust. **[R9]**
 The ordering is partly metric-dependent: under answered-valid accuracy (which
@@ -181,7 +187,13 @@ or pipeline fault.
 malformed output on 39.6% of its trials overall, vs 1.4-4.8% for the AHN arms
 on byte-identical prompts. **[R43]** Its malformed rate is 0.0% at the in-window
 control anchors, rises to 18-79% across the transition and early-recurrent
-targets, and falls to 3-10% at the deepest targets. **[R44]** By subtype the
+targets, and falls to 3-10% at the deepest targets. **[R51]** Correspondingly,
+the Transformer's abstention rate is not monotonic in pressure: it falls from
+0.52 (intended target 265) to 0.26-0.27 through 315-380 as malformed output
+rises, then climbs sharply to 0.82-0.95 at 520-760 as malformed output recedes;
+the H3 primary result concerns pooled failure-mode composition beyond the
+predefined W+16 boundary (Section 3.4), not monotonic abstention growth across
+intermediate pressures. **[R44]** By subtype the
 malformed outputs are over-length (4,580), unrecognised value (2,241), empty
 (1,488), and negation (813), spread across all items and seeds (Appendix A-VAL).
 The concentration at higher pressure with near-absence at the control anchors

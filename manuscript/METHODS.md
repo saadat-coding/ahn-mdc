@@ -13,7 +13,7 @@ code is `multi-hop`, retained unchanged for reproducibility.
 
 We study how retrieval degrades as a query target is pushed out of a model's
 exact-attention window, comparing a Transformer with no recurrent memory against
-three Adaptive Hybrid Neural (AHN) architectures that add a fixed-size recurrent
+three Artificial Hippocampus Network (AHN) architectures that add a fixed-size recurrent
 state. Three pre-registered hypotheses: **H1**, information types do not lose task
 accuracy at the same rate as memory pressure rises; **H2**, the accuracy collapse
 is concentrated rather than gradual, and the AHN recurrent path changes where it

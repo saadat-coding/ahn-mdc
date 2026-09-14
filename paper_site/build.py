@@ -41,7 +41,7 @@ BRANCH = sh("git", "rev-parse", "--abbrev-ref", "HEAD") or "unknown"
 BUILD_DATE = datetime.date.today().isoformat()
 
 PAPER_TITLE = ("Characterizing Information Degradation and Behavioural "
-               "Uncertainty Signalling in Adaptive Hybrid Neural Memory")
+               "Uncertainty Signalling in Artificial Hippocampus Networks")
 PAPER_SUBTITLE = ("A controlled study of what degrades, when it degrades, and how "
                   "failure manifests as a query target is pushed from exact "
                   "attention into a compressed recurrent memory.")

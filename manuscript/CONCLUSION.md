@@ -12,10 +12,12 @@ of a stored value remains in the model's state. The empirical performance knee
 does not coincide with the exact-attention window - for every architecture it
 sits below the window, and a substantial fraction of trials fail while the target
 is still exact-attention eligible, so the transition is not a clean inside/outside
-boundary. The recurrent path preserves useful near-window retrieval longer than
-the control, but its accuracy transition is also broader, by an explicitly
-post-freeze width characterization: it reshapes the transition rather than
-translating a sharp cliff. Beyond the transition, deep recurrent pressure yields
+boundary. The AHN variants preserve useful near-window retrieval longer than
+the control, but their accuracy transition is also broader, by an explicitly
+post-freeze width characterization: the AHN system reshapes the transition
+rather than translating a sharp cliff. This is a system-level comparison and
+does not isolate the recurrent mechanism from architecture- or
+training-specific differences. Beyond the transition, deep recurrent pressure yields
 no measurable sustained target-specific factual retrieval under this production
 evaluation for any architecture. Once retrieval becomes unreliable, the dominant
 observed distinction between the AHN variants and the control is failure
