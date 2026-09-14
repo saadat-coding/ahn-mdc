@@ -40,8 +40,8 @@ COMMIT_FULL = sh("git", "rev-parse", "HEAD") or "unknown"
 BRANCH = sh("git", "rev-parse", "--abbrev-ref", "HEAD") or "unknown"
 BUILD_DATE = datetime.date.today().isoformat()
 
-PAPER_TITLE = ("Characterizing Information Degradation and Behavioural "
-               "Uncertainty Signalling in Artificial Hippocampus Networks")
+PAPER_TITLE = ("When Memory Fails: Characterizing Information Degradation and "
+               "Behavioral Uncertainty in Artificial Hippocampus Networks")
 PAPER_SUBTITLE = ("A controlled study of what degrades, when it degrades, and how "
                   "failure manifests as a query target is pushed from exact "
                   "attention into a compressed recurrent memory.")
@@ -637,7 +637,7 @@ def _write_artifact(page: str, out: pathlib.Path) -> None:
                 body = body.replace(f"figures/{slug}.{ext}", _data_uri(f))
 
     art = (
-        "<title>AHN Memory Degradation</title>\n"
+        "<title>When Memory Fails</title>\n"
         "<style>\n" + css + "\n</style>\n"
         '<a id="top"></a>\n'
         + body + "\n"

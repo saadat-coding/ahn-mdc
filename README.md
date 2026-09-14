@@ -1,6 +1,6 @@
 # When Memory Fails
 
- Characterizing Information Degradation and Confidence Calibration in Adaptive Hybrid Neural Memory (AHN)
+ Characterizing Information Degradation and Behavioral Uncertainty in Artificial Hippocampus Networks (AHN)
 
 **How does information degrade in AHN under compression, and does the model know when
 its memory has become unreliable?**
