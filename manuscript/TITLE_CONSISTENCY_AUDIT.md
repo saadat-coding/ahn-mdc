@@ -84,25 +84,31 @@ regenerated and verified locally before any deployment action:
 | artifact visible `<h1>` (inside the rendered page) | `When Memory Fails: Characterizing Information Degradation and Behavioral Uncertainty in Artificial Hippocampus Networks` |
 | remaining old-title fragments in the packaged file | 0 |
 
-**Republish status: NOT COMPLETED — blocked, needs your action.** Publishing
-the corrected file to the existing artifact URL
-(`https://claude.ai/code/artifact/1d2c3864-feb1-4334-b1a8-dc59406fade7`) was
-attempted and was **denied by this session's auto-mode permission classifier**
-(an outward-facing-action safeguard, not a content or technical failure). I
-did not attempt to bypass it. See the accompanying message for what you need
-to do to complete this step (re-run the publish under a permission mode that
-allows it, or approve it explicitly), after which I can re-read the deployed
-page to confirm the visible title before reporting it fixed.
+**Republish status: COMPLETED, with one manual step outstanding.** Following
+your explicit authorization, the corrected file was published to the existing
+artifact URL
+(`https://claude.ai/code/artifact/1d2c3864-feb1-4334-b1a8-dc59406fade7`),
+preserving the same URL (no new artifact created). I then read the artifact
+back (as owner) and confirmed the published content is correct: `<title>`
+`When Memory Fails` (gallery/tab name), visible `<h1>`
+`When Memory Fails: Characterizing Information Degradation and Behavioral
+Uncertainty in Artificial Hippocampus Networks`, draft-version badge
+`e69d5eb`, zero old-title fragments.
 
-**Access-settings note (observed while reading the live artifact before this
-attempt):** the artifact is currently **"shared with anyone with the link"**
-— broader than "owner-only," evidently changed since the previous deployment
-report. It also reported that **"viewers currently see this version, but will
-not see future publishes until the share pin is moved"** — i.e. the platform
-may pin shared viewers to the *current* (old-titled) published version
-independently of new publishes, until that pin is moved. Neither setting was
-touched by this pass; both are reported here so the team is aware of the
-current access state and the pin caveat when the republish is completed.
+**Access settings: unchanged.** Still "shared with anyone with the link" —
+I did not modify sharing/access, and did not make it searchable or create any
+separate/public deployment.
+
+**Share pin: NOT moved — this needs your action.** The same read confirmed
+the platform's own caveat from the first deployment: *"viewers see a pinned
+earlier version, not this live version."* The Artifact tool I have does not
+expose a "move the share pin" action — publishing updates the artifact's
+latest content (which I can read back as owner), but does not itself move
+what already-shared link recipients see. **Teammates who open the existing
+link right now will still see the old title** until you move the pin yourself
+in the artifact's share panel on claude.ai (the option to point the shared
+link at the latest/current version). I could not find a tool-level equivalent
+of that action, so I did not attempt it.
 
 ## Scientific content
 
