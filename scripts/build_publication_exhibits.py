@@ -562,11 +562,16 @@ class Builder:
                           ["compound-relational (internal key multi-hop): a single co-located two-clause target — "
                            "NOT multi-hop retrieval across separated facts. WARNING driver: strict 0.842 < 0.85 AND "
                            "abstention 0.115 > 0.10; FAIL threshold 0.70 not reached → retained in the H1 primary.",
-                           "temporal: judged on answered-valid accuracy (0.922); 38% in-window abstention is a model "
-                           "property (documented, counterbalanced response bias — Appendix A-VAL).",
+                           "temporal: control-validity criteria were preregistered separately for temporal items. "
+                           "Instead of the non-temporal WARNING rule above (strict < 0.85 or abstention > 0.10), "
+                           "temporal is judged on answered-valid accuracy (PASS >= 0.85), with abstention assessed "
+                           "separately against its own preregistered WARNING interval of [0.40, 0.60], not the "
+                           "> 0.10 threshold used for non-temporal types. Temporal answered-valid accuracy 0.922 and "
+                           "abstention 0.384 (a documented, counterbalanced response bias — Appendix A-VAL) both "
+                           "fall on the PASS side of this criterion. See Results [R52].",
                            "control anchors = pooled intended model-tat 150 + 180; n = 3,072 / type."])
         self.add(eid="tbl4_construct_control", title="Construct / control-validity table",
-                 caption="Fact-type constructs and in-window (control) retrieval, pooled over intended targets 150 and 180 (n = 3,072 per fact type). compound-relational (internal data key multi-hop) is a single co-located two-clause sentence with a query that needs both clauses; it is not a benchmark of multi-hop reasoning across separated facts. Its control retrieval reaches only 0.842 (0.951 among answered trials; 0.115 abstention), which triggers a pre-registered WARNING (strict < 0.85 and abstention > 0.10); the FAIL threshold of 0.70 was not reached, so the type is retained in the H1 primary. temporal is judged on answered-valid accuracy (0.922) with abstention (0.384) tracked separately.",
+                 caption="Fact-type constructs and in-window (control) retrieval, pooled over intended targets 150 and 180 (n = 3,072 per fact type). compound-relational (internal data key multi-hop) is a single co-located two-clause sentence with a query that needs both clauses; it is not a benchmark of multi-hop reasoning across separated facts. Its control retrieval reaches only 0.842 (0.951 among answered trials; 0.115 abstention), which triggers a pre-registered WARNING (strict < 0.85 and abstention > 0.10); the FAIL threshold of 0.70 was not reached, so the type is retained in the H1 primary. Control-validity criteria were preregistered separately for temporal items: rather than the non-temporal WARNING rule above, temporal is judged on answered-valid accuracy (PASS >= 0.85), with abstention assessed separately against its own preregistered WARNING interval of [0.40, 0.60]. Temporal answered-valid accuracy (0.922) and abstention (0.384) both fall on the PASS side of this criterion (Results [R52]).",
                  kind="table", placement="MAIN", claim_ids=["VAL-1", "VAL-2"],
                  sources=["final_audit/FINAL_LOCKED/final_control_validity_control_validity.csv", "config/facts.yaml"],
                  source_tables=[st], files=[md, st],

@@ -335,7 +335,11 @@ identified as post-freeze wherever it appears.
   floors: for non-temporal types, PASS at strict accuracy ≥ 0.85, WARNING in
   [0.70, 0.85) or with abstention > 0.10 or malformed > 0.05, FAIL (benchmark
   invalid, excluded from the H1 primary) below 0.70; temporal is judged on
-  answered-valid accuracy with abstention tracked separately.
+  answered-valid accuracy (PASS ≥ 0.85) instead of strict accuracy, with
+  abstention assessed separately against its own preregistered WARNING
+  interval of [0.40, 0.60] rather than the > 0.10 threshold used for
+  non-temporal types (`config/experiment.yaml acceptance.control_validity`,
+  `full_run.control_validity`; §3.6 [R52]).
 - **Temporal counterbalancing.** The 2x2x2 nuisance design is verified balanced in
   the final item set, and answered-valid accuracy and abstention are reported by
   nuisance subgroup at the control anchors.

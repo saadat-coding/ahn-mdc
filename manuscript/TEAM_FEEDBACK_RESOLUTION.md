@@ -17,19 +17,21 @@ endpoint, hypothesis status, or locked artifact changed.
 | 7 | Temporal answer-position effect / construct validity | teammate | Yes (as a standing requirement) | Position effect measured (0.868 vs 1.000 answered-valid), controlled by a balanced 2×2×2 design, correctly scoped as "nets to chance" (not "eliminated") | **Addressed** | No | None. See `TEMPORAL_CONSTRUCT_FEEDBACK_AUDIT.md`. | NONE |
 | 8 | AHN vs Transformer comparison must be system-level, not causal-isolation of recurrent memory | teammate | **Yes** | Confound already stated broadly in Methods/Results/Discussion/Related Work; one Conclusion sentence used mechanism-level subject ("the recurrent path") | Mostly — 1 sentence was not | Yes (one sentence + subject fix) | Fixed `CONCLUSION.md`: "the recurrent path" → "the AHN variants" / "the AHN system," added explicit system-level-comparison sentence. See `SYSTEM_LEVEL_COMPARISON_AUDIT.md`. | WORDING ONLY |
 | 9 | Sumiya's pilot comments (50-row pilot, 68% lowest confidence bin, length_normalised, H2/H3 concerns) | teammate (Sumiya) | Valid **for the pilot artifact**; **not applicable** to the final study | `results_pilot.parquet` = 50 rows, 1 architecture (`gated_deltanet`), 1 seed — confirmed superseded; confidence-bin skew confirmed real *for that file* only; final config uses `sequence_probability` (not length-normalised), already flagged "provisional" in Methods/Discussion | Confidence-provisional caveat: **yes, already addressed**. Pilot H2/H3 concerns: **not applicable** (different, pre-freeze grid; self-labelled "NOT inferential evidence") | No | None to the manuscript. Documented classification in `PILOT_VS_FINAL_DATA_AUDIT.md` so the team cannot conflate the 50-row / 1,760-row pilots with the 92,160-trial final study. | NONE |
+| 10 | Youssef: Table 4's stated WARNING rule (strict<0.85 or abstention>0.10) appears to apply to temporal (abstention 0.384) but Table 4 reports temporal PASS | teammate (Youssef) | **Yes** (documentation gap) | Rule is pre-registered separately for temporal (`protocol/final_experiment_design.md` §3, commit `356cfef`, 2026-09-05, predates the final GPU run) and correctly implemented (`config/experiment.yaml`, `src/ahnexp/full_run.py::control_validity`); independently recomputed from the locked parquet: temporal answered-valid 0.9218, abstention 0.3841 → PASS, exactly as reported. No bug, no rule violation | Partially — the manuscript stated temporal uses answered-valid accuracy but never disclosed the specific asymmetric abstention threshold ([0.40,0.60] vs. >0.10) that resolves the apparent contradiction | Yes (one sentence + traceability row + Methods/exhibit/site clarification) | Added [R52] to `RESULTS.md` §3.6 + traceability row; clarified `METHODS_EXTENDED.md` §2.13, `tbl4_construct_control` exhibit footnote/caption, `paper_site` Table 4 caption, and the VAL-1 caveat in `final_claims_register.md`. See `manuscript/RESULTS_TRACEABILITY.md` (2026-09-15 documentation clarification pass). | WORDING ONLY (rule, thresholds, code, config, and all frozen/post-freeze numbers unchanged; VAL-1 status unchanged) |
 
 ## Summary
 
-- **9 / 9 feedback items resolved** (classified and, where warranted, addressed).
-- **3 items required a manuscript edit**: #1 (naming, 3 files), #2 (one sentence
+- **10 / 10 feedback items resolved** (classified and, where warranted, addressed).
+- **4 items required a manuscript edit**: #1 (naming, 3 files), #2 (one sentence
   + traceability row), #3 (one sentence + traceability row), #8 (one sentence +
-  subject correction in an already-drafted sentence).
+  subject correction in an already-drafted sentence), #10 (one sentence +
+  traceability row + Methods/exhibit/site clarification).
 - **5 items were already fully addressed** with no edit needed: #4, #5, #6, #7,
   and the non-pilot-applicable parts of #9.
 - **0 items required escalation as a genuine scientific issue (category D).**
 - **0 items were false positives requiring no classification** — every item
   mapped to categories A, B, C, or E as defined in the task.
 - **No hypothesis status, statistical endpoint, or locked/frozen artifact was
-  changed.** Two new descriptive result rows (R50, R51) were added; both are
-  `groupby`/`mean` recomputations from the already-locked, already-scored raw
-  parquet, not new inferential endpoints.
+  changed.** Three new descriptive result rows (R50, R51, R52) were added; all
+  are recomputations/clarifications from the already-locked, already-scored raw
+  parquet and pre-registered protocol documents, not new inferential endpoints.

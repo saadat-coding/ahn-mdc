@@ -181,7 +181,13 @@ strict (0.951 among answered trials), with 0.115 abstention and 0 malformed.
 type is retained in the H1 primary. **[R41]** The WARNING holds in 7 of 8 seeds,
 and only 2 of 48 items have control strict accuracy below 0.5 (Appendix A-VAL).
 This is a task-difficulty ceiling for a co-located two-clause target, not a memory
-or pipeline fault.
+or pipeline fault. **[R52]** Control-validity criteria were preregistered
+separately for temporal items. Whereas non-temporal items trigger a WARNING
+when strict accuracy is below 0.85 or abstention exceeds 0.10, temporal items
+are evaluated using answered-valid accuracy (PASS >= 0.85), with abstention
+assessed separately against a preregistered WARNING interval of [0.40, 0.60].
+Temporal answered-valid accuracy was 0.922 and abstention was 0.384, yielding
+PASS under the prespecified criterion.
 
 **Transformer control behaviour (VAL-3).** **[R42]** The Transformer arm produces
 malformed output on 39.6% of its trials overall, vs 1.4-4.8% for the AHN arms

@@ -9,5 +9,5 @@
 | entity-attribute | entity-attribute | closed_set | Person_0's favorite color is blue. | 1.0 | 1.0 | 0.0 | 0.0 | PASS |
 
 - compound-relational (internal key multi-hop): a single co-located two-clause target — NOT multi-hop retrieval across separated facts. WARNING driver: strict 0.842 < 0.85 AND abstention 0.115 > 0.10; FAIL threshold 0.70 not reached → retained in the H1 primary.
-- temporal: judged on answered-valid accuracy (0.922); 38% in-window abstention is a model property (documented, counterbalanced response bias — Appendix A-VAL).
+- temporal: control-validity criteria were preregistered separately for temporal items. Instead of the non-temporal WARNING rule above (strict < 0.85 or abstention > 0.10), temporal is judged on answered-valid accuracy (PASS >= 0.85), with abstention assessed separately against its own preregistered WARNING interval of [0.40, 0.60], not the > 0.10 threshold used for non-temporal types. Temporal answered-valid accuracy 0.922 and abstention 0.384 (a documented, counterbalanced response bias — Appendix A-VAL) both fall on the PASS side of this criterion. See Results [R52].
 - control anchors = pooled intended model-tat 150 + 180; n = 3,072 / type.

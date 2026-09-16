@@ -166,7 +166,7 @@ All statistics reproduce from the locked parquet to \|Δ\| ≤ 1e-14 (`final_aud
 - **Statistic:** pooled control answered-valid accuracy 0.922; directional bias 0.85 vs 0.99 (gold higher), 0.87 vs 1.00 (gold first-listed), counterbalanced.
 - **Uncertainty:** subgroup n = 1,536 per cell at control.
 - **Sensitivity:** H1 exclude-temporal and answered-valid sensitivities.
-- **Required caveat:** temporal raw strict is abstention-dominated (38 % in-window, 66 % overall); its H1 rank must be read with the answered-valid sensitivity.
+- **Required caveat:** temporal raw strict is abstention-dominated (38 % in-window, 66 % overall); its H1 rank must be read with the answered-valid sensitivity. Its in-window control verdict (PASS) uses the preregistered temporal control-validity criterion — answered-valid accuracy ≥ 0.85 with abstention judged against its own [0.40, 0.60] WARNING interval — not the non-temporal WARNING rule (strict < 0.85 or abstention > 0.10, see VAL-2); temporal's 0.384 abstention falls below the temporal interval (Results [R52]).
 - **Allowed wording:** "the temporal benchmark is a balanced two-alternative order task; the model has a documented directional response bias that is counterbalanced against the gold and nets to chance".
 - **Prohibited wording:** "the temporal benchmark is invalid" (it is not); "the model exploits a positional shortcut" (counterbalanced).
 

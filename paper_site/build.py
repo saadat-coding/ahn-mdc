@@ -480,8 +480,11 @@ def main() -> None:
         notes=["compound-relational is a single co-located two-clause target — not multi-hop retrieval across separated facts. "
                "Its control retrieval (0.842) triggers a pre-registered WARNING; the FAIL threshold (0.70) is not reached, "
                "so the type is retained in the H1 primary.",
-               "temporal is judged on answered-valid accuracy (0.922); its 38% in-window abstention is a documented, "
-               "counterbalanced model response bias."])
+               "Control-validity criteria were preregistered separately for temporal items: rather than the non-temporal "
+               "WARNING rule above (strict < 0.85 or abstention > 0.10), temporal is judged on answered-valid accuracy "
+               "(PASS >= 0.85), with abstention assessed separately against its own preregistered WARNING interval of "
+               "[0.40, 0.60]. Temporal answered-valid accuracy (0.922) and abstention (0.384, a documented, counterbalanced "
+               "model response bias) both fall on the PASS side of this criterion."])
     tbl5 = md_table_to_html(
         EXH / "tbl5_deep_recurrent.md",
         columns=[0, 2, 3, 4, 6, 7], headers=["architecture", "n", "correct", "strict accuracy",

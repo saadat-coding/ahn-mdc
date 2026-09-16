@@ -321,9 +321,9 @@
       "statistic_definitions": {
         "control_verdict": "full_run.control_validity (frozen); floor-only per-type gate"
       },
-      "caption": "Fact-type constructs and in-window (control) retrieval, pooled over intended targets 150 and 180 (n = 3,072 per fact type). compound-relational (internal data key multi-hop) is a single co-located two-clause sentence with a query that needs both clauses; it is not a benchmark of multi-hop reasoning across separated facts. Its control retrieval reaches only 0.842 (0.951 among answered trials; 0.115 abstention), which triggers a pre-registered WARNING (strict < 0.85 and abstention > 0.10); the FAIL threshold of 0.70 was not reached, so the type is retained in the H1 primary. temporal is judged on answered-valid accuracy (0.922) with abstention (0.384) tracked separately.",
+      "caption": "Fact-type constructs and in-window (control) retrieval, pooled over intended targets 150 and 180 (n = 3,072 per fact type). compound-relational (internal data key multi-hop) is a single co-located two-clause sentence with a query that needs both clauses; it is not a benchmark of multi-hop reasoning across separated facts. Its control retrieval reaches only 0.842 (0.951 among answered trials; 0.115 abstention), which triggers a pre-registered WARNING (strict < 0.85 and abstention > 0.10); the FAIL threshold of 0.70 was not reached, so the type is retained in the H1 primary. Control-validity criteria were preregistered separately for temporal items: rather than the non-temporal WARNING rule above, temporal is judged on answered-valid accuracy (PASS >= 0.85), with abstention assessed separately against its own preregistered WARNING interval of [0.40, 0.60]. Temporal answered-valid accuracy (0.922) and abstention (0.384) both fall on the PASS side of this criterion (Results [R52]).",
       "generated_files": {
-        "tbl4_construct_control.md": "29487dcd557498ccfbfb1e58dfddd9b820db8aa9387fba3fafd6d068ee079928"
+        "tbl4_construct_control.md": "af4e2123d6eef6af9856641f6b4892498c5ceef4ea16ae6c11cd685ac2543ead"
       },
       "notes": []
     },

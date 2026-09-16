@@ -64,16 +64,17 @@ source field · statistic · value · CI / p · analysis version · status.
 | R49 | plumbing gates reproduce with 0 blocking; Transformer malformed = control behaviour; compound-rel control = WARNING | (provenance) | A-REPRO | `reproduced__plumbing_gates.csv` | verdict | pre-registered gate outcomes | 0 blocking; CONTROL_BEHAVIOR; WARNING | — | 1.0/1.1 | frozen gate, reproduced |
 | R50 | contradictory & numerical A_transition trajectory not strictly monotonic: partial rebound at intended 235 vs 220, consistent in 8/8 seeds and all 3 AHN arms | H1-2 (descriptive) | fig1 | recomputed from locked parquet (`results_FINAL_92160.parquet`), AHN arms pooled, grouped by (fact_type, intended_model_tokens_after_target) and by (seed, intended_model_tokens_after_target) | `correct` | cell mean strict accuracy | contradictory: 0.513→0.676; numerical: 0.333→0.560 (220→235); rebound present in 8/8 seeds and all 3 AHN architectures | n=144/seed·target cell (48 items × 3 arms) | 1.0 | **team-feedback descriptive verification** (recomputed from locked parquet with frozen scoring fields; no new inferential endpoint) |
 | R51 | Transformer abstention non-monotonic in pressure: 0.52 (265) → 0.27 (315) → 0.26 (380) → 0.82 (520) → 0.95 (760), mirrored by malformed rate | VAL-3 (descriptive) | fig2 | recomputed from locked parquet, Transformer rows grouped by intended_model_tokens_after_target | `abstained`, `malformed`, `correct` | cell mean rate | abstained 0.518/0.322/0.268/0.263/0.821/0.946 at 265/285/315/380/520/760 | n=1,920/target | 1.0 | **team-feedback descriptive verification** (recomputed from locked parquet; no new inferential endpoint; does not alter the frozen H3 pooled statistic) |
+| R52 | Control-validity criteria preregistered separately for temporal: non-temporal WARNING triggers on strict < 0.85 or abstention > 0.10; temporal uses answered-valid accuracy (PASS ≥ 0.85) with its own abstention WARNING interval [0.40, 0.60]; temporal answered-valid 0.922, abstention 0.384 → PASS | VAL-1, VAL-2 | tbl4 | `config/experiment.yaml` (`acceptance.control_validity`); `src/ahnexp/full_run.py::control_validity`; `protocol/final_experiment_design.md` §3; recomputed from locked parquet | `answered_valid_accuracy`, `abstention_rate`, `verdict` | pooled anchors 150+180, applying the frozen per-type branch logic | answered_valid 0.9218; abstention 0.3841; verdict PASS | n=3,072/type | 1.0 | **team-feedback documentation clarification** (rule and thresholds are pre-registered — `protocol/final_experiment_design.md` §3, commit `356cfef`, 2026-09-05, predating the final GPU run — and were already correctly implemented and reported; recomputed from the locked parquet to confirm; no rule change, no new inferential endpoint, no frozen number altered) |
 
 ## Untraceable numerical prose
 
-**None.** Every numerical statement in `RESULTS.md` has a row above (51 statements,
-51 traced). Five rows use values recomputed from the locked parquet with frozen
+**None.** Every numerical statement in `RESULTS.md` has a row above (52 statements,
+52 traced). Six rows use values recomputed from the locked parquet with frozen
 scoring fields rather than read directly from a frozen CSV (R9 per-type
-answered-valid `A_transition`; R19 `K_abstention`; R30 outcome composition; R50
-and R51, added in the team-feedback verification pass below) — these are marked
-and reproduce deterministically. All post-freeze quantities are analysis version
-1.1 and are labelled as post-freeze in `RESULTS.md`.
+answered-valid `A_transition`; R19 `K_abstention`; R30 outcome composition; R50,
+R51, and R52, added in the team-feedback verification pass below) — these are
+marked and reproduce deterministically. All post-freeze quantities are analysis
+version 1.1 and are labelled as post-freeze in `RESULTS.md`.
 
 **Team-feedback verification pass (2026-09-13).** R50 and R51 were added in
 response to teammate observations about apparent non-monotonicity in Figures 1
@@ -85,6 +86,19 @@ no new inferential endpoint, and no change to any frozen or post-freeze primary
 result. See `manuscript/FIG1_TRANSITION_VARIABILITY_AUDIT.md` and
 `manuscript/FIG2_CONTROL_ABSTENTION_AUDIT.md` for the full descriptive tables
 (per-seed, per-architecture breakdowns) supporting R50/R51.
+
+**Documentation clarification pass (2026-09-15).** R52 was added in response to
+a teammate observation that Table 4's WARNING rule, as stated for compound-
+relational (R40), appears to also apply to temporal's 0.384 abstention but does
+not. The per-type control-validity rule is **pre-registered and was already
+correctly implemented and reported** — traced through `protocol/open_decisions.md`
+#5a, the Pilot Pass 2 hostile-audit finding, and `protocol/final_experiment_design.md`
+§3 (commit `356cfef`, 2026-09-05 21:33:24, predating the final GPU generation
+run) into `config/experiment.yaml acceptance.control_validity` and
+`src/ahnexp/full_run.py::control_validity()`; independently recomputed from the
+locked parquet, reproducing the reported PASS verdict exactly. R52 only adds the
+specific asymmetric threshold to the manuscript's prose — no rule, code, config,
+frozen output, or hypothesis status changed.
 
 **p-value representation (Revision Pass 1).** No statistical test or estimator
 changed. Bootstrap contrast p-values that the frozen analysis records as `0.0`
